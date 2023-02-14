@@ -1,37 +1,36 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Volo.Abp;
+using Volo.Abp.AspNetCore;
 using Volo.Abp.AspNetCore.Mvc;
-using Volo.Abp.MultiTenancy;
+using Volo.Abp.AspNetCore.Mvc.MultiTenancy;
 
-namespace Pages.Abp.MultiTenancy
+namespace Pages.Abp.MultiTenancy;
+
+[Area("abp")]
+[RemoteService(Name = "abp")]
+[Route("api/abp/multi-tenancy")]
+public class AbpTenantController : AbpControllerBase, IAbpTenantAppService
 {
-    [Route("api/abp/multi-tenancy")]
-    public class AbpTenantController : AbpController
+    private readonly IAbpTenantAppService _abpTenantAppService;
+
+    public AbpTenantController(IAbpTenantAppService abpTenantAppService)
     {
+        _abpTenantAppService = abpTenantAppService;
+    }
 
-        protected ITenantStore TenantStore { get; }
+    [HttpGet]
+    [Route("tenants/by-name/{name}")]
+    public virtual async Task<FindTenantResultDto> FindTenantByNameAsync(string name)
+    {
+        return await _abpTenantAppService.FindTenantByNameAsync(name);
+    }
 
-        public AbpTenantController(ITenantStore tenantStore)
-        {
-            TenantStore = tenantStore;
-        }
-
-        [HttpGet]
-        [Route("find-tenant/{name}")]
-        public async Task<FindTenantResult> FindTenantAsync(string name)
-        {
-            var tenant = await TenantStore.FindAsync(name);
-
-            if (tenant == null)
-            {
-                return new FindTenantResult{Success = false};
-            }
-
-            return new FindTenantResult
-            {
-                Success = true,
-                TenantId = tenant.Id
-            };
-        }
+    [HttpGet]
+    [Route("tenants/by-id/{id}")]
+    public virtual async Task<FindTenantResultDto> FindTenantByIdAsync(Guid id)
+    {
+        return await _abpTenantAppService.FindTenantByIdAsync(id);
     }
 }

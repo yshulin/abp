@@ -1,32 +1,25 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Volo.Abp.Caching;
-using Volo.Abp.Http.Client;
-using Volo.Abp.Localization;
+using System;
+using Microsoft.Extensions.DependencyInjection;
+using Volo.Abp.EventBus;
 using Volo.Abp.Modularity;
 
-namespace Volo.Abp.AspNetCore.Mvc.Client
+namespace Volo.Abp.AspNetCore.Mvc.Client;
+
+[DependsOn(
+    typeof(AbpAspNetCoreMvcClientCommonModule),
+    typeof(AbpEventBusModule)
+    )]
+public class AbpAspNetCoreMvcClientModule : AbpModule
 {
-    [DependsOn(
-        typeof(AbpHttpClientModule),
-        typeof(AbpAspNetCoreMvcContractsModule),
-        typeof(AbpCachingModule),
-        typeof(AbpLocalizationModule)
-        )]
-    public class AbpAspNetCoreMvcClientModule : AbpModule
+    public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        public const string RemoteServiceName = "AbpMvcClient";
-
-        public override void ConfigureServices(ServiceConfigurationContext context)
+        var abpHostEnvironment = context.Services.GetAbpHostEnvironment();
+        if (abpHostEnvironment.IsDevelopment())
         {
-            context.Services.AddHttpClientProxies(
-                typeof(AbpAspNetCoreMvcContractsModule).Assembly,
-                RemoteServiceName,
-                asDefaultServices: false
-            );
-
-            Configure<AbpLocalizationOptions>(options =>
+            Configure<AbpAspNetCoreMvcClientCacheOptions>(options =>
             {
-                options.GlobalContributors.Add<RemoteLocalizationContributor>();
+                options.TenantConfigurationCacheAbsoluteExpiration = TimeSpan.FromSeconds(5);
+                options.ApplicationConfigurationDtoCacheAbsoluteExpiration = TimeSpan.FromSeconds(5);
             });
         }
     }

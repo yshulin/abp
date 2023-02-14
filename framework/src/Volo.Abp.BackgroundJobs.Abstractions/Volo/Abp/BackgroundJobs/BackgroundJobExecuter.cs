@@ -2,51 +2,83 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using System;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.DependencyInjection;
+using Volo.Abp.ExceptionHandling;
+using Volo.Abp.MultiTenancy;
 
-namespace Volo.Abp.BackgroundJobs
+namespace Volo.Abp.BackgroundJobs;
+
+public class BackgroundJobExecuter : IBackgroundJobExecuter, ITransientDependency
 {
-    public class BackgroundJobExecuter : IBackgroundJobExecuter, ITransientDependency
+    public ILogger<BackgroundJobExecuter> Logger { protected get; set; }
+
+    protected AbpBackgroundJobOptions Options { get; }
+    
+    protected ICurrentTenant CurrentTenant { get; }
+
+    public BackgroundJobExecuter(IOptions<AbpBackgroundJobOptions> options, ICurrentTenant currentTenant)
     {
-        public ILogger<BackgroundJobExecuter> Logger { protected get; set; }
+        CurrentTenant = currentTenant;
+        Options = options.Value;
 
-        protected BackgroundJobOptions Options { get; }
+        Logger = NullLogger<BackgroundJobExecuter>.Instance;
+    }
 
-        public BackgroundJobExecuter(IOptions<BackgroundJobOptions> options)
+    public virtual async Task ExecuteAsync(JobExecutionContext context)
+    {
+        var job = context.ServiceProvider.GetService(context.JobType);
+        if (job == null)
         {
-            Options = options.Value;
-
-            Logger = NullLogger<BackgroundJobExecuter>.Instance;
+            throw new AbpException("The job type is not registered to DI: " + context.JobType);
         }
 
-        public virtual void Execute(JobExecutionContext context)
+        var jobExecuteMethod = context.JobType.GetMethod(nameof(IBackgroundJob<object>.Execute)) ??
+                               context.JobType.GetMethod(nameof(IAsyncBackgroundJob<object>.ExecuteAsync));
+        if (jobExecuteMethod == null)
         {
-            var job = context.ServiceProvider.GetService(context.JobType);
-            if (job == null)
-            {
-                throw new AbpException("The job type is not registered to DI: " + context.JobType);
-            }
+            throw new AbpException($"Given job type does not implement {typeof(IBackgroundJob<>).Name} or {typeof(IAsyncBackgroundJob<>).Name}. " +
+                                   "The job type was: " + context.JobType);
+        }
 
-            var jobExecuteMethod = context.JobType.GetMethod(nameof(IBackgroundJob<object>.Execute));
-            if (jobExecuteMethod == null)
+        try
+        {
+            using(CurrentTenant.Change(GetJobArgsTenantId(context.JobArgs)))
             {
-                throw new AbpException($"Given job type does not implement {typeof(IBackgroundJob<>).Name}. The job type was: " + context.JobType);
-            }
-
-            try
-            {
-                jobExecuteMethod.Invoke(job, new[] { context.JobArgs });
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-
-                throw new BackgroundJobExecutionException("A background job execution is failed. See inner exception for details.", ex)
+                if (jobExecuteMethod.Name == nameof(IAsyncBackgroundJob<object>.ExecuteAsync))
                 {
-                    JobType = context.JobType.AssemblyQualifiedName,
-                    JobArgs = context.JobArgs
-                };
+                    await ((Task)jobExecuteMethod.Invoke(job, new[] { context.JobArgs }));
+                }
+                else
+                {
+                    jobExecuteMethod.Invoke(job, new[] { context.JobArgs });
+                }
             }
+           
         }
+        catch (Exception ex)
+        {
+            Logger.LogException(ex);
+
+            await context.ServiceProvider
+                .GetRequiredService<IExceptionNotifier>()
+                .NotifyAsync(new ExceptionNotificationContext(ex));
+
+            throw new BackgroundJobExecutionException("A background job execution is failed. See inner exception for details.", ex)
+            {
+                JobType = context.JobType.AssemblyQualifiedName,
+                JobArgs = context.JobArgs
+            };
+        }
+    }
+    
+    protected virtual Guid? GetJobArgsTenantId(object jobArgs)
+    {
+        return jobArgs switch
+        {
+            IMultiTenant multiTenantJobArgs => multiTenantJobArgs.TenantId,
+            _ => CurrentTenant.Id
+        };
     }
 }

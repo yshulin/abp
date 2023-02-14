@@ -1,27 +1,18 @@
 ﻿using System;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
-namespace Volo.Abp.Http
+namespace Volo.Abp.Http;
+
+public class Startup
 {
-    public class Startup
+    public void ConfigureServices(IServiceCollection services)
     {
-        public IServiceProvider ConfigureServices(IServiceCollection services)
-        {
-            services.AddApplication<AbpHttpTestModule>(options =>
-            {
-                options.UseAutofac();
-            });
+        services.AddApplication<AbpHttpClientTestModule>();
+    }
 
-            //TODO: This is needed because ASP.NET Core does not use IServiceProviderFactory!
-            return services.BuildServiceProviderFromFactory();
-        }
-
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
-        {
-            app.InitializeApplication();
-        }
+    public void Configure(IApplicationBuilder app)
+    {
+        app.InitializeApplication();
     }
 }

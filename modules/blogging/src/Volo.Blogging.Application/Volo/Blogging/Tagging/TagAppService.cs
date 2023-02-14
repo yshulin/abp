@@ -2,23 +2,22 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Volo.Abp.Application.Services;
 using Volo.Blogging.Tagging.Dtos;
 
 namespace Volo.Blogging.Tagging
 {
-    public class TagAppService : ApplicationService, ITagAppService
+    public class TagAppService : BloggingAppServiceBase, ITagAppService
     {
-        private readonly ITagRepository _tagRepository;
+        protected ITagRepository TagRepository { get; }
 
         public TagAppService(ITagRepository tagRepository)
         {
-            _tagRepository = tagRepository;
+            TagRepository = tagRepository;
         }
 
-        public async Task<List<TagDto>> GetPopularTags(Guid blogId, GetPopularTagsInput input)
+        public async Task<List<TagDto>> GetPopularTagsAsync(Guid blogId, GetPopularTagsInput input)
         {
-            var postTags = (await _tagRepository.GetListAsync(blogId)).OrderByDescending(t=>t.UsageCount)
+            var postTags = (await TagRepository.GetListAsync(blogId)).OrderByDescending(t=>t.UsageCount)
                 .WhereIf(input.MinimumPostCount != null, t=>t.UsageCount >= input.MinimumPostCount)
                 .Take(input.ResultCount).ToList();
 

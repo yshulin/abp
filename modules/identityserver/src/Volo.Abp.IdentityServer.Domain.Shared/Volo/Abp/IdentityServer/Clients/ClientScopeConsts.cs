@@ -1,7 +1,9 @@
-﻿namespace Volo.Abp.IdentityServer.Clients
+﻿namespace Volo.Abp.IdentityServer.Clients;
+
+public class ClientScopeConsts
 {
-    public class ClientScopeConsts
-    {
-        public const int ScopeMaxLength = 196;
-    }
+    /// <summary>
+    /// Default value: 200
+    /// </summary>
+    public static int ScopeMaxLength { get; set; } = 200;
 }

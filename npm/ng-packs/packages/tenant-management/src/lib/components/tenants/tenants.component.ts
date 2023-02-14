@@ -1,181 +1,150 @@
-import { ABP } from '@abp/ng.core';
-import { ConfirmationService, Toaster } from '@abp/ng.theme.shared';
-import { Component, TemplateRef, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Select, Store } from '@ngxs/store';
-import { Observable } from 'rxjs';
-import { pluck, switchMap, take } from 'rxjs/operators';
+import { ListService, PagedResultDto } from '@abp/ng.core';
+import { eFeatureManagementComponents } from '@abp/ng.feature-management';
+import { GetTenantsInput, TenantDto, TenantService } from '@abp/ng.tenant-management/proxy';
+import {Confirmation, ConfirmationService, ToasterService} from '@abp/ng.theme.shared';
 import {
-  TenantManagementAdd,
-  TenantManagementDelete,
-  TenantManagementGetById,
-  TenantManagementUpdate,
-} from '../../actions/tenant-management.actions';
-import { TenantManagementService } from '../../services/tenant-management.service';
-import { TenantManagementState } from '../../states/tenant-management.state';
-
-type SelectedModalContent = {
-  type: string;
-  title: string;
-  template: TemplateRef<any>;
-};
+  EXTENSIONS_IDENTIFIER,
+  FormPropData,
+  generateFormFromProps,
+} from '@abp/ng.theme.shared/extensions';
+import { Component, Injector, OnInit } from '@angular/core';
+import { UntypedFormBuilder, UntypedFormGroup } from '@angular/forms';
+import { finalize } from 'rxjs/operators';
+import { eTenantManagementComponents } from '../../enums/components';
 
 @Component({
   selector: 'abp-tenants',
   templateUrl: './tenants.component.html',
+  providers: [
+    ListService,
+    {
+      provide: EXTENSIONS_IDENTIFIER,
+      useValue: eTenantManagementComponents.Tenants,
+    },
+  ],
 })
-export class TenantsComponent {
-  @Select(TenantManagementState.get)
-  datas$: Observable<ABP.BasicItem[]>;
+export class TenantsComponent implements OnInit {
+  data: PagedResultDto<TenantDto> = { items: [], totalCount: 0 };
 
-  selected: ABP.BasicItem;
+  selected!: TenantDto;
 
-  tenantForm: FormGroup;
+  tenantForm!: UntypedFormGroup;
 
-  defaultConnectionStringForm: FormGroup;
+  isModalVisible!: boolean;
 
-  defaultConnectionString: string;
+  visibleFeatures = false;
 
-  isModalVisible: boolean;
+  providerKey!: string;
 
-  selectedModalContent = {} as SelectedModalContent;
+  modalBusy = false;
 
-  _useSharedDatabase: boolean;
+  featureManagementKey = eFeatureManagementComponents.FeatureManagement;
 
-  get useSharedDatabase(): boolean {
-    return this.defaultConnectionStringForm.get('useSharedDatabase').value;
+  get hasSelectedTenant(): boolean {
+    return Boolean(this.selected.id);
   }
 
-  get connectionString(): string {
-    return this.defaultConnectionStringForm.get('defaultConnectionString').value;
-  }
-
-  @ViewChild('tenantModalTemplate', { static: false })
-  tenantModalTemplate: TemplateRef<any>;
-
-  @ViewChild('connectionStringModalTemplate', { static: false })
-  connectionStringModalTemplate: TemplateRef<any>;
-
-  @ViewChild('featuresModalTemplate', { static: false })
-  featuresModalTemplate: TemplateRef<any>;
+  onVisibleFeaturesChange = (value: boolean) => {
+    this.visibleFeatures = value;
+  };
 
   constructor(
+    public readonly list: ListService<GetTenantsInput>,
+    private injector: Injector,
     private confirmationService: ConfirmationService,
-    private tenantService: TenantManagementService,
-    private fb: FormBuilder,
-    private store: Store,
+    private service: TenantService,
+    private toasterService: ToasterService,
+    private fb: UntypedFormBuilder,
   ) {}
 
+  ngOnInit() {
+    this.hookToQuery();
+  }
+
   private createTenantForm() {
-    this.tenantForm = this.fb.group({
-      name: [this.selected.name || '', [Validators.required, Validators.maxLength(256)]],
-    });
+    const data = new FormPropData(this.injector, this.selected);
+    this.tenantForm = generateFormFromProps(data);
   }
 
-  private createDefaultConnectionStringForm() {
-    this.defaultConnectionStringForm = this.fb.group({
-      useSharedDatabase: this._useSharedDatabase,
-      defaultConnectionString: this.defaultConnectionString || '',
-    });
-  }
-
-  openModal(title: string, template: TemplateRef<any>, type: string) {
-    this.selectedModalContent = {
-      title,
-      template,
-      type,
-    };
-
+  addTenant() {
+    this.selected = {} as TenantDto;
+    this.createTenantForm();
     this.isModalVisible = true;
   }
 
-  onEditConnectionString(id: string) {
-    this.store
-      .dispatch(new TenantManagementGetById(id))
-      .pipe(
-        pluck('TenantManagementState', 'selectedItem'),
-        switchMap(selected => {
-          this.selected = selected;
-          return this.tenantService.getDefaultConnectionString(id);
-        }),
-      )
-      .subscribe(fetchedConnectionString => {
-        this._useSharedDatabase = fetchedConnectionString ? false : true;
-        this.defaultConnectionString = fetchedConnectionString ? fetchedConnectionString : '';
-        this.createDefaultConnectionStringForm();
-        this.openModal('AbpTenantManagement::ConnectionStrings', this.connectionStringModalTemplate, 'saveConnStr');
-      });
-  }
-
-  onManageFeatures(id: string) {
-    this.openModal('AbpTenantManagement::Features', this.featuresModalTemplate, 'saveFeatures');
-  }
-
-  onAddTenant() {
-    this.selected = {} as ABP.BasicItem;
-    this.createTenantForm();
-    this.openModal('AbpTenantManagement::NewTenant', this.tenantModalTemplate, 'saveTenant');
-  }
-
-  onEditTenant(id: string) {
-    this.store
-      .dispatch(new TenantManagementGetById(id))
-      .pipe(pluck('TenantManagementState', 'selectedItem'))
-      .subscribe(selected => {
-        this.selected = selected;
-        this.createTenantForm();
-        this.openModal('AbpTenantManagement::Edit', this.tenantModalTemplate, 'saveTenant');
-      });
+  editTenant(id: string) {
+    this.service.get(id).subscribe(res => {
+      this.selected = res;
+      this.createTenantForm();
+      this.isModalVisible = true;
+    });
   }
 
   save() {
-    const { type } = this.selectedModalContent;
-    if (!type) return;
-    if (type === 'saveTenant') this.saveTenant();
-    else if (type === 'saveConnStr') this.saveConnectionString();
-  }
+    if (!this.tenantForm.valid || this.modalBusy) return;
+    this.modalBusy = true;
 
-  saveConnectionString() {
-    if (this.useSharedDatabase) {
-      this.tenantService
-        .deleteDefaultConnectionString(this.selected.id)
-        .pipe(take(1))
-        .subscribe(() => {
-          this.isModalVisible = false;
-        });
-    } else {
-      this.tenantService
-        .updateDefaultConnectionString({ id: this.selected.id, defaultConnectionString: this.connectionString })
-        .pipe(take(1))
-        .subscribe(() => {
-          this.isModalVisible = false;
-        });
-    }
-  }
+    const { id } = this.selected;
 
-  saveTenant() {
-    if (!this.tenantForm.valid) return;
-
-    this.store
-      .dispatch(
-        this.selected.id
-          ? new TenantManagementUpdate({ ...this.tenantForm.value, id: this.selected.id })
-          : new TenantManagementAdd(this.tenantForm.value),
-      )
+    (id
+      ? this.service.update(id, { ...this.selected, ...this.tenantForm.value })
+      : this.service.create(this.tenantForm.value)
+    )
+      .pipe(finalize(() => (this.modalBusy = false)))
       .subscribe(() => {
         this.isModalVisible = false;
+        this.list.get();
       });
   }
 
   delete(id: string, name: string) {
     this.confirmationService
-      .warn('AbpTenantManagement::TenantDeletionConfirmationMessage', 'AbpTenantManagement::AreYouSure', {
-        messageLocalizationParams: [name],
-      })
-      .subscribe((status: Toaster.Status) => {
-        if (status === Toaster.Status.confirm) {
-          this.store.dispatch(new TenantManagementDelete(id));
+      .warn(
+        'AbpTenantManagement::TenantDeletionConfirmationMessage',
+        'AbpTenantManagement::AreYouSure',
+        {
+          messageLocalizationParams: [name],
+        },
+      )
+      .subscribe((status: Confirmation.Status) => {
+        if (status === Confirmation.Status.confirm) {
+          this.toasterService.success('AbpUi::SuccessfullyDeleted');
+          this.service.delete(id).subscribe(() => this.list.get());
         }
       });
+  }
+
+  hookToQuery() {
+    this.list
+      .hookToQuery(query => this.service.getList(query))
+      .subscribe(res => {
+        this.data = res;
+      });
+  }
+
+  onSharedDatabaseChange(value: boolean) {
+    if (!value) {
+      setTimeout(() => {
+        const defaultConnectionString = document.getElementById(
+          'defaultConnectionString',
+        ) as HTMLInputElement;
+        if (defaultConnectionString) {
+          defaultConnectionString.focus();
+        }
+      }, 0);
+    }
+  }
+
+  openFeaturesModal(providerKey: string) {
+    this.providerKey = providerKey;
+    setTimeout(() => {
+      this.visibleFeatures = true;
+    }, 0);
+  }
+
+  sort(data: any) {
+    const { prop, dir } = data.sorts[0];
+    this.list.sortKey = prop;
+    this.list.sortOrder = dir;
   }
 }

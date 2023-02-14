@@ -1,17 +1,23 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Volo.Abp.Features;
 
-namespace Volo.Abp.FeatureManagement
+namespace Volo.Abp.FeatureManagement;
+
+public interface IFeatureManagementProvider
 {
-    public interface IFeatureManagementProvider
-    {
-        string Name { get; }
+    string Name { get; }
 
-        Task<string> GetOrNullAsync([NotNull] FeatureDefinition feature, [CanBeNull] string providerKey);
+    //TODO: Other better method name.
+    bool Compatible(string providerName);
 
-        Task SetAsync([NotNull] FeatureDefinition feature, [NotNull] string value, [CanBeNull] string providerKey);
+    //TODO: Other better method name.
+    Task<IAsyncDisposable> HandleContextAsync(string providerName, string providerKey);
 
-        Task ClearAsync([NotNull] FeatureDefinition feature, [CanBeNull] string providerKey);
-    }
+    Task<string> GetOrNullAsync([NotNull] FeatureDefinition feature, [CanBeNull] string providerKey);
+
+    Task SetAsync([NotNull] FeatureDefinition feature, [NotNull] string value, [CanBeNull] string providerKey);
+
+    Task ClearAsync([NotNull] FeatureDefinition feature, [CanBeNull] string providerKey);
 }

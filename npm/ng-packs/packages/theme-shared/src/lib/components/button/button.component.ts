@@ -1,68 +1,87 @@
-import { LoaderStart, LoaderStop } from '@abp/ng.core';
-import { Component, Input, OnInit } from '@angular/core';
-import { Actions, ofActionSuccessful } from '@ngxs/store';
-import { filter } from 'rxjs/operators';
+/* eslint-disable @angular-eslint/no-output-native */
+import { ABP } from '@abp/ng.core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  Renderer2,
+  ViewChild,
+} from '@angular/core';
 
 @Component({
   selector: 'abp-button',
   template: `
-    <button [attr.type]="buttonType" [ngClass]="buttonClass" [disabled]="loading">
-      <i [ngClass]="icon" class="mr-1"></i><ng-content></ng-content>
+    <button
+      #button
+      [id]="buttonId"
+      [attr.type]="buttonType"
+      [attr.form]="formName"
+      [ngClass]="buttonClass"
+      [disabled]="loading || disabled"
+      (click.stop)="click.next($event); abpClick.next($event)"
+      (focus)="focus.next($event); abpFocus.next($event)"
+      (blur)="blur.next($event); abpBlur.next($event)"
+    >
+      <i [ngClass]="icon" class="me-1"></i><ng-content></ng-content>
     </button>
   `,
 })
 export class ButtonComponent implements OnInit {
   @Input()
-  buttonClass: string = 'btn btn-primary';
+  buttonId = '';
 
   @Input()
-  buttonType: string = 'button';
+  buttonClass = 'btn btn-primary';
 
   @Input()
-  iconClass: string;
+  buttonType = 'button';
+  
+  @Input()
+  formName?: string = undefined;
 
   @Input()
-  loading: boolean = false;
+  iconClass?: string;
 
   @Input()
-  requestType: string | string[];
+  loading = false;
 
   @Input()
-  requestURLContainSearchValue: string;
+  disabled: boolean | undefined = false;
+
+  @Input()
+  attributes?: ABP.Dictionary<string>;
+
+  @Output() readonly click = new EventEmitter<MouseEvent>();
+
+  @Output() readonly focus = new EventEmitter<FocusEvent>();
+
+  @Output() readonly blur = new EventEmitter<FocusEvent>();
+
+  @Output() readonly abpClick = new EventEmitter<MouseEvent>();
+
+  @Output() readonly abpFocus = new EventEmitter<FocusEvent>();
+
+  @Output() readonly abpBlur = new EventEmitter<FocusEvent>();
+
+  @ViewChild('button', { static: true })
+  buttonRef!: ElementRef<HTMLButtonElement>;
 
   get icon(): string {
-    return `${this.loading ? 'fa fa-spin fa-spinner' : this.iconClass || 'd-none'}`;
+    return `${this.loading ? 'fa fa-spinner fa-spin' : this.iconClass || 'd-none'}`;
   }
 
-  constructor(private actions: Actions) {}
+  constructor(private renderer: Renderer2) {}
 
-  ngOnInit(): void {
-    if (this.requestType || this.requestURLContainSearchValue) {
-      this.actions
-        .pipe(
-          ofActionSuccessful(LoaderStart, LoaderStop),
-          filter((event: LoaderStart | LoaderStop) => {
-            let condition = true;
-            if (this.requestType) {
-              if (!Array.isArray(this.requestType)) this.requestType = [this.requestType];
-
-              condition =
-                condition &&
-                this.requestType.findIndex(type => type.toLowerCase() === event.payload.method.toLowerCase()) > -1;
-            }
-
-            if (condition && this.requestURLContainSearchValue) {
-              condition =
-                condition &&
-                event.payload.url.toLowerCase().indexOf(this.requestURLContainSearchValue.toLowerCase()) > -1;
-            }
-
-            return condition;
-          }),
-        )
-        .subscribe(() => {
-          this.loading = !this.loading;
-        });
+  ngOnInit() {
+    if (this.attributes) {
+      Object.keys(this.attributes).forEach(key => {
+        if (this.attributes?.[key]) {
+          this.renderer.setAttribute(this.buttonRef.nativeElement, key, this.attributes[key]);
+        }
+      });
     }
   }
 }

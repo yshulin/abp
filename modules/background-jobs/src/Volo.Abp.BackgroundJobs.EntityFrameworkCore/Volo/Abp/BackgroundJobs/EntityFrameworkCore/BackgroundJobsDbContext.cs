@@ -1,33 +1,26 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Volo.Abp.Data;
 using Volo.Abp.EntityFrameworkCore;
+using Volo.Abp.MultiTenancy;
 
-namespace Volo.Abp.BackgroundJobs.EntityFrameworkCore
+namespace Volo.Abp.BackgroundJobs.EntityFrameworkCore;
+
+[IgnoreMultiTenancy]
+[ConnectionStringName(AbpBackgroundJobsDbProperties.ConnectionStringName)]
+public class BackgroundJobsDbContext : AbpDbContext<BackgroundJobsDbContext>, IBackgroundJobsDbContext
 {
-    [ConnectionStringName(BackgroundJobsConsts.ConnectionStringName)]
-    public class BackgroundJobsDbContext : AbpDbContext<BackgroundJobsDbContext>, IBackgroundJobsDbContext
+    public DbSet<BackgroundJobRecord> BackgroundJobs { get; set; }
+
+    public BackgroundJobsDbContext(DbContextOptions<BackgroundJobsDbContext> options)
+        : base(options)
     {
-        public static string TablePrefix { get; set; } = BackgroundJobsConsts.DefaultDbTablePrefix;
 
-        public static string Schema { get; set; } = BackgroundJobsConsts.DefaultDbSchema;
+    }
 
-        public DbSet<BackgroundJobRecord> BackgroundJobs { get; set; }
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
 
-        public BackgroundJobsDbContext(DbContextOptions<BackgroundJobsDbContext> options) 
-            : base(options)
-        {
-
-        }
-
-        protected override void OnModelCreating(ModelBuilder builder)
-        {
-            base.OnModelCreating(builder);
-
-            builder.ConfigureBackgroundJobs(options =>
-            {
-                options.TablePrefix = TablePrefix;
-                options.Schema = Schema;
-            });
-        }
+        builder.ConfigureBackgroundJobs();
     }
 }

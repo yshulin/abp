@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Volo.Blogging
 {
@@ -17,6 +15,11 @@ namespace Volo.Blogging
             get => GetFormattedRoutePrefix();
             set => _routePrefix = value;
         }
+
+        /// <summary>
+        /// Used to specify ignore paths if the route prefix is null or empty.
+        /// </summary>
+        public List<string> IgnoredPaths { get; } = new ();
 
         private string GetFormattedRoutePrefix()
         {

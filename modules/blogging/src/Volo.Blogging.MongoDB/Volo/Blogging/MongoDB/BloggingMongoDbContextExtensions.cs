@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Volo.Abp;
+﻿using Volo.Abp;
 using Volo.Abp.MongoDB;
 using Volo.Blogging.Blogs;
 using Volo.Blogging.Comments;
@@ -13,38 +10,33 @@ namespace Volo.Blogging.MongoDB
     public static class BloggingMongoDbContextExtensions
     {
         public static void ConfigureBlogging(
-            this IMongoModelBuilder builder,
-            Action<MongoModelBuilderConfigurationOptions> optionsAction = null)
+            this IMongoModelBuilder builder)
         {
             Check.NotNull(builder, nameof(builder));
 
-            var options = new BloggingMongoModelBuilderConfigurationOptions();
-
-            optionsAction?.Invoke(options);
-
             builder.Entity<BlogUser>(b =>
             {
-                b.CollectionName = options.CollectionPrefix + "Users";
+                b.CollectionName = AbpBloggingDbProperties.DbTablePrefix + "Users";
             });
 
             builder.Entity<Blog>(b =>
             {
-                b.CollectionName = options.CollectionPrefix + "Blogs";
+                b.CollectionName = AbpBloggingDbProperties.DbTablePrefix + "Blogs";
             });
 
             builder.Entity<Post>(b =>
             {
-                b.CollectionName = options.CollectionPrefix + "Posts";
+                b.CollectionName = AbpBloggingDbProperties.DbTablePrefix + "Posts";
             });
 
             builder.Entity<Tagging.Tag>(b =>
             {
-                b.CollectionName = options.CollectionPrefix + "Tags";
+                b.CollectionName = AbpBloggingDbProperties.DbTablePrefix + "Tags";
             });
 
             builder.Entity<Comment>(b =>
             {
-                b.CollectionName = options.CollectionPrefix + "Comments";
+                b.CollectionName = AbpBloggingDbProperties.DbTablePrefix + "Comments";
             });
         }
     }

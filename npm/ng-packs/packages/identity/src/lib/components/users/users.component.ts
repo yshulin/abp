@@ -1,100 +1,109 @@
-import { ABP } from '@abp/ng.core';
-import { ConfirmationService, Toaster } from '@abp/ng.theme.shared';
-import { Component, OnInit, TemplateRef, TrackByFunction, ViewChild } from '@angular/core';
-import { AbstractControl, FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { validatePassword } from '@ngx-validate/core';
-import { Select, Store } from '@ngxs/store';
-import { combineLatest, Observable, Subject } from 'rxjs';
-import { debounceTime, filter, map, pluck, take } from 'rxjs/operators';
-import snq from 'snq';
+import { ListService, PagedResultDto } from '@abp/ng.core';
 import {
-  IdentityAddUser,
-  IdentityDeleteUser,
-  IdentityGetUserById,
-  IdentityGetUserRoles,
-  IdentityGetUsers,
-  IdentityUpdateUser,
-} from '../../actions/identity.actions';
-import { Identity } from '../../models/identity';
-import { IdentityState } from '../../states/identity.state';
+  GetIdentityUsersInput,
+  IdentityRoleDto,
+  IdentityUserDto,
+  IdentityUserService,
+} from '@abp/ng.identity/proxy';
+import { ePermissionManagementComponents } from '@abp/ng.permission-management';
+import {Confirmation, ConfirmationService, ToasterService} from '@abp/ng.theme.shared';
+import {
+  EXTENSIONS_IDENTIFIER,
+  FormPropData,
+  generateFormFromProps,
+} from '@abp/ng.theme.shared/extensions';
+import {
+  Component,
+  Injector,
+  OnInit,
+  TemplateRef,
+  TrackByFunction,
+  ViewChild,
+} from '@angular/core';
+import { AbstractControl, UntypedFormArray, UntypedFormBuilder, UntypedFormGroup } from '@angular/forms';
+import { finalize, switchMap, tap } from 'rxjs/operators';
+import { eIdentityComponents } from '../../enums/components';
+
 @Component({
   selector: 'abp-users',
   templateUrl: './users.component.html',
+  providers: [
+    ListService,
+    {
+      provide: EXTENSIONS_IDENTIFIER,
+      useValue: eIdentityComponents.Users,
+    },
+  ],
 })
 export class UsersComponent implements OnInit {
-  @Select(IdentityState.getUsers)
-  data$: Observable<Identity.UserItem[]>;
-
-  @Select(IdentityState.getUsersTotalCount)
-  totalCount$: Observable<number>;
+  data: PagedResultDto<IdentityUserDto> = { items: [], totalCount: 0 };
 
   @ViewChild('modalContent', { static: false })
   modalContent: TemplateRef<any>;
 
-  form: FormGroup;
+  form: UntypedFormGroup;
 
-  selected: Identity.UserItem;
+  selected: IdentityUserDto;
 
-  selectedUserRoles: Identity.RoleItem[];
+  selectedUserRoles: IdentityRoleDto[];
 
-  roles: Identity.RoleItem[];
+  roles: IdentityRoleDto[];
 
-  visiblePermissions: boolean = false;
+  visiblePermissions = false;
 
   providerKey: string;
 
-  pageQuery: ABP.PageQueryParams = {
-    sorting: 'userName',
-  };
-
   isModalVisible: boolean;
 
-  loading: boolean = false;
+  modalBusy = false;
 
-  search$ = new Subject<string>();
+  permissionManagementKey = ePermissionManagementComponents.PermissionManagement;
+
+  entityDisplayName: string;
 
   trackByFn: TrackByFunction<AbstractControl> = (index, item) => Object.keys(item)[0] || index;
 
-  get roleGroups(): FormGroup[] {
-    return snq(() => (this.form.get('roleNames') as FormArray).controls as FormGroup[], []);
+  onVisiblePermissionChange = event => {
+    this.visiblePermissions = event;
+  };
+
+  get roleGroups(): UntypedFormGroup[] {
+    return ((this.form.get('roleNames') as UntypedFormArray)?.controls as UntypedFormGroup[]) || [];
   }
 
-  constructor(private confirmationService: ConfirmationService, private fb: FormBuilder, private store: Store) {}
+  constructor(
+    public readonly list: ListService<GetIdentityUsersInput>,
+    protected confirmationService: ConfirmationService,
+    protected service: IdentityUserService,
+    private toasterService: ToasterService,
+    protected fb: UntypedFormBuilder,
+    protected injector: Injector,
+  ) {}
 
   ngOnInit() {
-    this.search$.pipe(debounceTime(300)).subscribe(value => {
-      this.pageQuery.filter = value;
-      this.get();
-    });
+    this.hookToQuery();
   }
 
   buildForm() {
-    this.roles = this.store.selectSnapshot(IdentityState.getRoles);
+    const data = new FormPropData(this.injector, this.selected);
+    this.form = generateFormFromProps(data);
 
-    this.form = this.fb.group({
-      password: [
-        '',
-        [
-          Validators.required,
-          Validators.maxLength(32),
-          Validators.minLength(6),
-          validatePassword(['small', 'capital', 'number', 'special']),
-        ],
-      ],
-      userName: [this.selected.userName || '', [Validators.required, Validators.maxLength(256)]],
-      email: [this.selected.email || '', [Validators.required, Validators.email, Validators.maxLength(256)]],
-      name: [this.selected.name || '', [Validators.maxLength(64)]],
-      surname: [this.selected.surname || '', [Validators.maxLength(64)]],
-      phoneNumber: [this.selected.phoneNumber || '', [Validators.maxLength(16)]],
-      lockoutEnabled: [this.selected.twoFactorEnabled || (this.selected.id ? false : true)],
-      twoFactorEnabled: [this.selected.twoFactorEnabled || (this.selected.id ? false : true)],
-      roleNames: this.fb.array(
-        this.roles.map(role =>
-          this.fb.group({
-            [role.name]: [!!snq(() => this.selectedUserRoles.find(userRole => userRole.id === role.id))],
-          }),
+    this.service.getAssignableRoles().subscribe(({ items }) => {
+      this.roles = items;
+      this.form.addControl(
+        'roleNames',
+        this.fb.array(
+          this.roles.map(role =>
+            this.fb.group({
+              [role.name]: [
+                this.selected.id
+                  ? !!this.selectedUserRoles?.find(userRole => userRole.id === role.id)
+                  : role.isDefault,
+              ],
+            }),
+          ),
         ),
-      ),
+      );
     });
   }
 
@@ -103,51 +112,48 @@ export class UsersComponent implements OnInit {
     this.isModalVisible = true;
   }
 
-  onAdd() {
-    this.selected = {} as Identity.UserItem;
-    this.selectedUserRoles = [] as Identity.RoleItem[];
+  add() {
+    this.selected = {} as IdentityUserDto;
+    this.selectedUserRoles = [] as IdentityRoleDto[];
     this.openModal();
   }
 
-  onEdit(id: string) {
-    combineLatest([this.store.dispatch(new IdentityGetUserById(id)), this.store.dispatch(new IdentityGetUserRoles(id))])
+  edit(id: string) {
+    this.service
+      .get(id)
       .pipe(
-        filter(([res1, res2]) => res1 && res2),
-        map(([state, _]) => state),
-        pluck('IdentityState'),
-        take(1),
+        tap(user => (this.selected = user)),
+        switchMap(() => this.service.getRoles(id)),
       )
-      .subscribe((state: Identity.State) => {
-        this.selected = state.selectedUser;
-        this.selectedUserRoles = state.selectedUserRoles;
+      .subscribe(userRole => {
+        this.selectedUserRoles = userRole.items || [];
         this.openModal();
       });
   }
 
   save() {
-    if (!this.form.valid) return;
+    if (!this.form.valid || this.modalBusy) return;
+    this.modalBusy = true;
 
-    const { roleNames } = this.form.value;
-    const mappedRoleNames = snq(
-      () => roleNames.filter(role => !!role[Object.keys(role)[0]]).map(role => Object.keys(role)[0]),
-      [],
-    );
+    const { roleNames = [] } = this.form.value;
+    const mappedRoleNames =
+      roleNames.filter(role => !!role[Object.keys(role)[0]]).map(role => Object.keys(role)[0]) ||
+      [];
 
-    this.store
-      .dispatch(
-        this.selected.id
-          ? new IdentityUpdateUser({
-              ...this.form.value,
-              id: this.selected.id,
-              roleNames: mappedRoleNames,
-            })
-          : new IdentityAddUser({
-              ...this.form.value,
-              roleNames: mappedRoleNames,
-            }),
-      )
+    const { id } = this.selected;
+
+    (id
+      ? this.service.update(id, {
+          ...this.selected,
+          ...this.form.value,
+          roleNames: mappedRoleNames,
+        })
+      : this.service.create({ ...this.form.value, roleNames: mappedRoleNames })
+    )
+      .pipe(finalize(() => (this.modalBusy = false)))
       .subscribe(() => {
         this.isModalVisible = false;
+        this.list.get();
       });
   }
 
@@ -156,22 +162,30 @@ export class UsersComponent implements OnInit {
       .warn('AbpIdentity::UserDeletionConfirmationMessage', 'AbpIdentity::AreYouSure', {
         messageLocalizationParams: [userName],
       })
-      .subscribe((status: Toaster.Status) => {
-        if (status === Toaster.Status.confirm) {
-          this.store.dispatch(new IdentityDeleteUser(id));
+      .subscribe((status: Confirmation.Status) => {
+        if (status === Confirmation.Status.confirm) {
+          this.service.delete(id).subscribe(() => {
+            this.toasterService.success('AbpUi::SuccessfullyDeleted');
+            this.list.get()});
         }
       });
   }
 
-  onPageChange(data) {
-    this.pageQuery.skipCount = data.first;
-    this.pageQuery.maxResultCount = data.rows;
-
-    this.get();
+  sort(data) {
+    const { prop, dir } = data.sorts[0];
+    this.list.sortKey = prop;
+    this.list.sortOrder = dir;
   }
 
-  get() {
-    this.loading = true;
-    this.store.dispatch(new IdentityGetUsers(this.pageQuery)).subscribe(() => (this.loading = false));
+  private hookToQuery() {
+    this.list.hookToQuery(query => this.service.getList(query)).subscribe(res => (this.data = res));
+  }
+
+  openPermissionsModal(providerKey: string, entityDisplayName?: string) {
+    this.providerKey = providerKey;
+    this.entityDisplayName = entityDisplayName;
+    setTimeout(() => {
+      this.visiblePermissions = true;
+    }, 0);
   }
 }

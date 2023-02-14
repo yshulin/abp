@@ -1,9 +1,10 @@
-﻿using Volo.Abp.DependencyInjection;
+﻿using System.Threading.Tasks;
 
-namespace Volo.Abp.Modularity
+namespace Volo.Abp.Modularity;
+
+public interface IAbpModule
 {
-    public interface IAbpModule : ISingletonDependency
-    {
-        void ConfigureServices(ServiceConfigurationContext context);
-    }
+    Task ConfigureServicesAsync(ServiceConfigurationContext context);
+
+    void ConfigureServices(ServiceConfigurationContext context);
 }

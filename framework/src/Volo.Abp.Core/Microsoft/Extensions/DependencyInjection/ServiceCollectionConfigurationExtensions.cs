@@ -1,19 +1,34 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using JetBrains.Annotations;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Volo.Abp.Configuration;
+using Microsoft.Extensions.Hosting;
+using Volo.Abp;
 
-namespace Microsoft.Extensions.DependencyInjection
+namespace Microsoft.Extensions.DependencyInjection;
+
+public static class ServiceCollectionConfigurationExtensions
 {
-    public static class ServiceCollectionConfigurationExtensions
+    public static IServiceCollection ReplaceConfiguration(this IServiceCollection services, IConfiguration configuration)
     {
-        public static IServiceCollection SetConfiguration(this IServiceCollection services, IConfigurationRoot configurationRoot)
+        return services.Replace(ServiceDescriptor.Singleton<IConfiguration>(configuration));
+    }
+
+    [NotNull]
+    public static IConfiguration GetConfiguration(this IServiceCollection services)
+    {
+        return services.GetConfigurationOrNull() ?? 
+               throw new AbpException("Could not find an implementation of " + typeof(IConfiguration).AssemblyQualifiedName + " in the service collection.");
+    }
+    
+    [CanBeNull]
+    public static IConfiguration GetConfigurationOrNull(this IServiceCollection services)
+    {
+        var hostBuilderContext = services.GetSingletonInstanceOrNull<HostBuilderContext>();
+        if (hostBuilderContext?.Configuration != null)
         {
-            return services.Replace(ServiceDescriptor.Singleton<IConfigurationAccessor>(new DefaultConfigurationAccessor(configurationRoot)));
+            return hostBuilderContext.Configuration as IConfigurationRoot;
         }
 
-        public static IConfigurationRoot GetConfiguration(this IServiceCollection services)
-        {
-            return services.GetSingletonInstance<IConfigurationAccessor>().Configuration;
-        }
+        return services.GetSingletonInstanceOrNull<IConfiguration>();
     }
 }

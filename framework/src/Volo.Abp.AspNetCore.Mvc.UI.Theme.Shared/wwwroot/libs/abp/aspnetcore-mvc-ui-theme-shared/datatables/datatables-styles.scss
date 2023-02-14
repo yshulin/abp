@@ -1,4 +1,4 @@
-﻿.dataTable {
+.dataTable {
     width: 100% !important;
     border-spacing: 0 !important;
 }
@@ -20,15 +20,6 @@
                     ul.dropdown-menu {
                         li {
                             cursor: pointer;
-                            padding: 5px;
-
-                            a {
-                                display: block;
-                            }
-                        }
-
-                        li:hover {
-                            background: #f4f5f8;
                         }
                     }
                 }

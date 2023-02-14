@@ -1,7 +1,6 @@
-﻿namespace Volo.Abp.IdentityServer.Clients
+﻿namespace Volo.Abp.IdentityServer.Clients;
+
+public class ClientGrantTypeConsts
 {
-    public class ClientGrantTypeConsts
-    {
-        public const int GrantTypeMaxLength = 196;
-    }
+    public static int GrantTypeMaxLength { get; set; } = 250;
 }

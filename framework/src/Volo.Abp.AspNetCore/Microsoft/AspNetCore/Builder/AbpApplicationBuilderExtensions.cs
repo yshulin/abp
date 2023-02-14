@@ -1,112 +1,114 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
+using System;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
-using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.RequestLocalization;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Volo.Abp;
 using Volo.Abp.AspNetCore.Auditing;
-using Volo.Abp.AspNetCore.Mvc.ExceptionHandling;
+using Volo.Abp.AspNetCore.ExceptionHandling;
+using Volo.Abp.AspNetCore.Security;
+using Volo.Abp.AspNetCore.Security.Claims;
 using Volo.Abp.AspNetCore.Tracing;
 using Volo.Abp.AspNetCore.Uow;
 using Volo.Abp.DependencyInjection;
-using Volo.Abp.Localization;
-using Volo.Abp.Settings;
 using Volo.Abp.Threading;
 
-namespace Microsoft.AspNetCore.Builder
+namespace Microsoft.AspNetCore.Builder;
+
+public static class AbpApplicationBuilderExtensions
 {
-    public static class AbpApplicationBuilderExtensions
+    private const string ExceptionHandlingMiddlewareMarker = "_AbpExceptionHandlingMiddleware_Added";
+
+    public async static Task InitializeApplicationAsync([NotNull] this IApplicationBuilder app)
     {
-        private const string ExceptionHandlingMiddlewareMarker = "_AbpExceptionHandlingMiddleware_Added";
+        Check.NotNull(app, nameof(app));
 
-        public static void InitializeApplication([NotNull] this IApplicationBuilder app)
+        app.ApplicationServices.GetRequiredService<ObjectAccessor<IApplicationBuilder>>().Value = app;
+        var application = app.ApplicationServices.GetRequiredService<IAbpApplicationWithExternalServiceProvider>();
+        var applicationLifetime = app.ApplicationServices.GetRequiredService<IHostApplicationLifetime>();
+
+        applicationLifetime.ApplicationStopping.Register(() =>
         {
-            Check.NotNull(app, nameof(app));
+            AsyncHelper.RunSync(() => application.ShutdownAsync());
+        });
 
-            app.ApplicationServices.GetRequiredService<ObjectAccessor<IApplicationBuilder>>().Value = app;
-            app.ApplicationServices.GetRequiredService<IAbpApplicationWithExternalServiceProvider>().Initialize(app.ApplicationServices);
+        applicationLifetime.ApplicationStopped.Register(() =>
+        {
+            application.Dispose();
+        });
+
+        await application.InitializeAsync(app.ApplicationServices);
+    }
+
+    public static void InitializeApplication([NotNull] this IApplicationBuilder app)
+    {
+        Check.NotNull(app, nameof(app));
+
+        app.ApplicationServices.GetRequiredService<ObjectAccessor<IApplicationBuilder>>().Value = app;
+        var application = app.ApplicationServices.GetRequiredService<IAbpApplicationWithExternalServiceProvider>();
+        var applicationLifetime = app.ApplicationServices.GetRequiredService<IHostApplicationLifetime>();
+
+        applicationLifetime.ApplicationStopping.Register(() =>
+        {
+            application.Shutdown();
+        });
+
+        applicationLifetime.ApplicationStopped.Register(() =>
+        {
+            application.Dispose();
+        });
+
+        application.Initialize(app.ApplicationServices);
+    }
+
+    public static IApplicationBuilder UseAuditing(this IApplicationBuilder app)
+    {
+        return app
+            .UseMiddleware<AbpAuditingMiddleware>();
+    }
+
+    public static IApplicationBuilder UseUnitOfWork(this IApplicationBuilder app)
+    {
+        return app
+            .UseAbpExceptionHandling()
+            .UseMiddleware<AbpUnitOfWorkMiddleware>();
+    }
+
+    public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
+    {
+        return app
+            .UseMiddleware<AbpCorrelationIdMiddleware>();
+    }
+
+    public static IApplicationBuilder UseAbpRequestLocalization(this IApplicationBuilder app,
+        Action<RequestLocalizationOptions> optionsAction = null)
+    {
+        app.ApplicationServices
+            .GetRequiredService<IAbpRequestLocalizationOptionsProvider>()
+            .InitLocalizationOptions(optionsAction);
+
+        return app.UseMiddleware<AbpRequestLocalizationMiddleware>();
+    }
+
+    public static IApplicationBuilder UseAbpExceptionHandling(this IApplicationBuilder app)
+    {
+        if (app.Properties.ContainsKey(ExceptionHandlingMiddlewareMarker))
+        {
+            return app;
         }
 
-        public static IApplicationBuilder UseAuditing(this IApplicationBuilder app)
-        {
-            return app
-                .UseMiddleware<AbpAuditingMiddleware>();
-        }
+        app.Properties[ExceptionHandlingMiddlewareMarker] = true;
+        return app.UseMiddleware<AbpExceptionHandlingMiddleware>();
+    }
 
-        public static IApplicationBuilder UseUnitOfWork(this IApplicationBuilder app)
-        {
-            return app
-                .UseAbpExceptionHandling()
-                .UseMiddleware<AbpUnitOfWorkMiddleware>();
-        }
+    public static IApplicationBuilder UseAbpClaimsMap(this IApplicationBuilder app)
+    {
+        return app.UseMiddleware<AbpClaimsMapMiddleware>();
+    }
 
-        public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
-        {
-            return app
-                .UseMiddleware<AbpCorrelationIdMiddleware>();
-        }
-
-        public static IApplicationBuilder UseAbpRequestLocalization(this IApplicationBuilder app, Action<RequestLocalizationOptions> optionsAction = null)
-        {
-            IReadOnlyList<LanguageInfo> languages;
-            string defaultLanguage;
-
-            using (var scope = app.ApplicationServices.CreateScope())
-            {
-                var languageProvider = scope.ServiceProvider.GetRequiredService<ILanguageProvider>();
-                languages = AsyncHelper.RunSync(() => languageProvider.GetLanguagesAsync());
-
-                var settingProvider = scope.ServiceProvider.GetRequiredService<ISettingProvider>();
-                defaultLanguage = AsyncHelper.RunSync(() => settingProvider.GetOrNullAsync(LocalizationSettingNames.DefaultLanguage));
-            }
-
-            var options = !languages.Any()
-                ? new RequestLocalizationOptions()
-                : new RequestLocalizationOptions
-                {
-                    DefaultRequestCulture = DefaultGetRequestCulture(defaultLanguage, languages),
-
-                    SupportedCultures = languages
-                        .Select(l => l.CultureName)
-                        .Distinct()
-                        .Select(c => new CultureInfo(c))
-                        .ToArray(),
-
-                    SupportedUICultures = languages
-                        .Select(l => l.UiCultureName)
-                        .Distinct()
-                        .Select(c => new CultureInfo(c))
-                        .ToArray()
-                };
-
-            optionsAction?.Invoke(options);
-
-            return app.UseRequestLocalization(options);
-        }
-
-        public static IApplicationBuilder UseAbpExceptionHandling(this IApplicationBuilder app)
-        {
-            if (app.Properties.ContainsKey(ExceptionHandlingMiddlewareMarker))
-            {
-                return app;
-            }
-
-            app.Properties[ExceptionHandlingMiddlewareMarker] = true;
-            return app.UseMiddleware<AbpExceptionHandlingMiddleware>();
-        }
-
-        private static RequestCulture DefaultGetRequestCulture(string defaultLanguage, IReadOnlyList<LanguageInfo> languages)
-        {
-            if (defaultLanguage == null)
-            {
-                var firstLanguage = languages.First();
-                return new RequestCulture(firstLanguage.CultureName, firstLanguage.UiCultureName);
-            }
-
-            var (cultureName, uiCultureName) = LocalizationSettingHelper.ParseLanguageSetting(defaultLanguage);
-            return new RequestCulture(cultureName, uiCultureName);
-        }
+    public static IApplicationBuilder UseAbpSecurityHeaders(this IApplicationBuilder app)
+    {
+        return app.UseMiddleware<AbpSecurityHeadersMiddleware>();
     }
 }

@@ -1,4 +1,4 @@
-﻿(function ($) {
+(function ($) {
     if (!$) {
         return;
     }
@@ -35,7 +35,12 @@
                 //change text
                 if ($buttonInnerSpan.length && $button.attr('data-busy-text')) {
                     $button.data('buttonOriginalText', $buttonInnerSpan.html());
-                    $buttonInnerSpan.html($button.attr('data-busy-text'));
+
+                    if ($button.data('busy-text-is-html')) {
+                        $buttonInnerSpan.html($button.attr('data-busy-text'));
+                    } else {
+                        $buttonInnerSpan.text($button.attr('data-busy-text'));
+                    }
                 }
 
                 $button.addClass('button-busy');
@@ -91,6 +96,13 @@
         //serialize to array
         var data = $(this).serializeArray();
 
+        // add unchecked checkboxes because serializeArray ignores them
+        $(this).find("input[type=checkbox]").each(function () {
+            if (!$(this).is(':checked')) {
+                data.push({ name: this.name, value: this.checked });
+            }
+        });
+
         //add also disabled items
         $(':disabled[name]', this)
             .each(function (item) {
@@ -107,7 +119,6 @@
 
         //map to object
         var obj = {};
-
         if (camelCase !== undefined ? camelCase : true) {
             data.forEach(function (d) {
                 d.name = toCamelCase(d.name);
@@ -115,17 +126,21 @@
         }
 
         data.map(function (x) {
-            //TODO: improve mapping. it only supports one level deep object.
             var names = x.name.split(".");
-            if (names.length === 1 && !obj[names[0]]) {
-                obj[names[0]] = x.value;
-            }
-            else if (names.length === 2) {
-                if (!obj[names[0]]) {
-                    obj[names[0]] = {};
-                }
-                if (!obj[names[0]][names[1]]) {
-                    obj[names[0]][names[1]] = x.value;
+            for (var i = 0; i < names.length; i++) {
+                var o = obj;
+                for (var j = 0; j <= i; j++) {
+                    if ($.isEmptyObject(o[names[j]])) {
+                        o[names[j]] = {};
+                    }
+
+                    if (i == names.length - 1 && j == i) {
+                        if ($.isEmptyObject(o[names[j]])) {
+                            o[names[j]] = x.value;
+                        }
+                    }
+
+                    o = o[names[j]]
                 }
             }
         });
@@ -160,7 +175,7 @@
                             formSaved = true;
                             $modal.modal('hide');
                         }
-                    });
+                    }, false);
             }
         });
 

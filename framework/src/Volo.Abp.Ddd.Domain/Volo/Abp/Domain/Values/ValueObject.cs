@@ -1,61 +1,49 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace Volo.Abp.Domain.Values
+namespace Volo.Abp.Domain.Values;
+
+//Inspired from https://docs.microsoft.com/en-us/dotnet/standard/microservices-architecture/microservice-ddd-cqrs-patterns/implement-value-objects
+
+public abstract class ValueObject
 {
-    //Inspired from https://docs.microsoft.com/en-us/dotnet/standard/microservices-architecture/microservice-ddd-cqrs-patterns/implement-value-objects
+    protected abstract IEnumerable<object> GetAtomicValues();
 
-    public abstract class ValueObject
+    public bool ValueEquals(object obj)
     {
-        protected static bool EqualOperator(ValueObject left, ValueObject right)
+        if (obj == null || obj.GetType() != GetType())
         {
-            if (ReferenceEquals(left, null) ^ ReferenceEquals(right, null))
-            {
-                return false;
-            }
-            return ReferenceEquals(left, null) || left.Equals(right);
+            return false;
         }
 
-        protected static bool NotEqualOperator(ValueObject left, ValueObject right)
-        {
-            return !(EqualOperator(left, right));
-        }
+        var other = (ValueObject)obj;
 
-        protected abstract IEnumerable<object> GetAtomicValues();
+        var thisValues = GetAtomicValues().GetEnumerator();
+        var otherValues = other.GetAtomicValues().GetEnumerator();
 
-        public override bool Equals(object obj)
+        var thisMoveNext = thisValues.MoveNext();
+        var otherMoveNext = otherValues.MoveNext();
+        while (thisMoveNext && otherMoveNext)
         {
-            if (obj == null || obj.GetType() != GetType())
+            if (ReferenceEquals(thisValues.Current, null) ^ ReferenceEquals(otherValues.Current, null))
             {
                 return false;
             }
 
-            ValueObject other = (ValueObject)obj;
-            IEnumerator<object> thisValues = GetAtomicValues().GetEnumerator();
-            IEnumerator<object> otherValues = other.GetAtomicValues().GetEnumerator();
-            while (thisValues.MoveNext() && otherValues.MoveNext())
+            if (thisValues.Current != null && !thisValues.Current.Equals(otherValues.Current))
             {
-                if (ReferenceEquals(thisValues.Current, null) ^
-                    ReferenceEquals(otherValues.Current, null))
-                {
-                    return false;
-                }
-
-                if (thisValues.Current != null &&
-                    !thisValues.Current.Equals(otherValues.Current))
-                {
-                    return false;
-                }
+                return false;
             }
-            return !thisValues.MoveNext() && !otherValues.MoveNext();
+
+            thisMoveNext = thisValues.MoveNext();
+            otherMoveNext = otherValues.MoveNext();
+
+            if (thisMoveNext != otherMoveNext)
+            {
+                return false;
+            }
         }
 
-        public override int GetHashCode()
-        {
-            return GetAtomicValues()
-                .Select(x => x != null ? x.GetHashCode() : 0)
-                .Aggregate((x, y) => x ^ y);
-        }
-        // Other utilility methods
+        return !thisMoveNext && !otherMoveNext;
     }
 }

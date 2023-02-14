@@ -1,34 +1,74 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using AutoMapper;
 using Volo.Abp.Collections;
 
-namespace Volo.Abp.AutoMapper
+namespace Volo.Abp.AutoMapper;
+
+public class AbpAutoMapperOptions
 {
-    public class AbpAutoMapperOptions
+    public List<Action<IAbpAutoMapperConfigurationContext>> Configurators { get; }
+
+    public ITypeList<Profile> ValidatingProfiles { get; set; }
+
+    public AbpAutoMapperOptions()
     {
-        public List<Action<IAbpAutoMapperConfigurationContext>> Configurators { get; }
+        Configurators = new List<Action<IAbpAutoMapperConfigurationContext>>();
+        ValidatingProfiles = new TypeList<Profile>();
+    }
 
-        public ITypeList<Profile> ValidatingProfiles { get; set; }
+    public void AddMaps<TModule>(bool validate = false)
+    {
+        var assembly = typeof(TModule).Assembly;
 
-        public AbpAutoMapperOptions()
+        Configurators.Add(context =>
         {
-            Configurators = new List<Action<IAbpAutoMapperConfigurationContext>>();
-            ValidatingProfiles = new TypeList<Profile>();
-        }
+            context.MapperConfiguration.AddMaps(assembly);
+        });
 
-        public void AddProfile<TProfile>(bool validate = false)
-            where TProfile: Profile, new()
+        if (validate)
         {
-            Configurators.Add(context =>
-            {
-                context.MapperConfiguration.AddProfile<TProfile>();
-            });
+            var profileTypes = assembly
+                .DefinedTypes
+                .Where(type => typeof(Profile).IsAssignableFrom(type) && !type.IsAbstract && !type.IsGenericType);
 
-            if (validate)
+            foreach (var profileType in profileTypes)
             {
-                ValidatingProfiles.Add<TProfile>();
+                ValidatingProfiles.Add(profileType);
             }
+        }
+    }
+
+    public void AddProfile<TProfile>(bool validate = false)
+        where TProfile : Profile, new()
+    {
+        Configurators.Add(context =>
+        {
+            context.MapperConfiguration.AddProfile<TProfile>();
+        });
+
+        if (validate)
+        {
+            ValidateProfile(typeof(TProfile));
+        }
+    }
+
+    public void ValidateProfile<TProfile>(bool validate = true)
+        where TProfile : Profile
+    {
+        ValidateProfile(typeof(TProfile), validate);
+    }
+
+    public void ValidateProfile(Type profileType, bool validate = true)
+    {
+        if (validate)
+        {
+            ValidatingProfiles.AddIfNotContains(profileType);
+        }
+        else
+        {
+            ValidatingProfiles.Remove(profileType);
         }
     }
 }

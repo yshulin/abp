@@ -1,100 +1,52 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Volo.Abp.DependencyInjection
+namespace Volo.Abp.DependencyInjection;
+
+//TODO: Make DefaultConventionalRegistrar extensible, so we can only define GetLifeTimeOrNull to contribute to the convention. This can be more performant!
+public class DefaultConventionalRegistrar : ConventionalRegistrarBase
 {
-    //TODO: Make DefaultConventionalRegistrar extensible, so we can only define GetLifeTimeOrNull to contribute to the convention. This can be more performant!
-    public class DefaultConventionalRegistrar : ConventionalRegistrarBase
+    public override void AddType(IServiceCollection services, Type type)
     {
-        public override void AddType(IServiceCollection services, Type type)
+        if (IsConventionalRegistrationDisabled(type))
         {
-            if (IsConventionalRegistrationDisabled(type))
-            {
-                return;
-            }
-
-            var dependencyAttribute = GetDependencyAttributeOrNull(type);
-            var lifeTime = GetLifeTimeOrNull(type, dependencyAttribute);
-
-            if (lifeTime == null)
-            {
-                return;
-            }
-
-            var serviceTypes = ExposedServiceExplorer.GetExposedServices(type);
-
-            TriggerServiceExposing(services, type, serviceTypes);
-
-            foreach (var serviceType in serviceTypes)
-            {
-                var serviceDescriptor = ServiceDescriptor.Describe(serviceType, type, lifeTime.Value);
-
-                if (dependencyAttribute?.ReplaceServices == true)
-                {
-                    services.Replace(serviceDescriptor);
-                }
-                else if (dependencyAttribute?.TryRegister == true)
-                {
-                    services.TryAdd(serviceDescriptor);
-                }
-                else
-                {
-                    services.Add(serviceDescriptor);
-                }
-            }
+            return;
         }
 
-        protected virtual void TriggerServiceExposing(IServiceCollection services, Type type, List<Type> serviceTypes)
+        var dependencyAttribute = GetDependencyAttributeOrNull(type);
+        var lifeTime = GetLifeTimeOrNull(type, dependencyAttribute);
+
+        if (lifeTime == null)
         {
-            var exposeActions = services.GetExposingActionList();
-            if (exposeActions.Any())
-            {
-                var args = new OnServiceExposingContext(type, serviceTypes);
-                foreach (var action in exposeActions)
-                {
-                    action(args);
-                }
-            }
+            return;
         }
 
-        protected virtual bool IsConventionalRegistrationDisabled(Type type)
-        {
-            return type.IsDefined(typeof(DisableConventionalRegistrationAttribute), true);
-        }
+        var exposedServiceTypes = GetExposedServiceTypes(type);
 
-        protected virtual DependencyAttribute GetDependencyAttributeOrNull(Type type)
-        {
-            return type.GetCustomAttribute<DependencyAttribute>(true);
-        }
+        TriggerServiceExposing(services, type, exposedServiceTypes);
 
-        protected virtual ServiceLifetime? GetLifeTimeOrNull(Type type, [CanBeNull] DependencyAttribute dependencyAttribute)
+        foreach (var exposedServiceType in exposedServiceTypes)
         {
-            return dependencyAttribute?.Lifetime ?? GetServiceLifetimeFromClassHierarcy(type);
-        }
+            var serviceDescriptor = CreateServiceDescriptor(
+                type,
+                exposedServiceType,
+                exposedServiceTypes,
+                lifeTime.Value
+            );
 
-        protected virtual ServiceLifetime? GetServiceLifetimeFromClassHierarcy(Type type)
-        {
-            if (typeof(ITransientDependency).GetTypeInfo().IsAssignableFrom(type))
+            if (dependencyAttribute?.ReplaceServices == true)
             {
-                return ServiceLifetime.Transient;
+                services.Replace(serviceDescriptor);
             }
-
-            if (typeof(ISingletonDependency).GetTypeInfo().IsAssignableFrom(type))
+            else if (dependencyAttribute?.TryRegister == true)
             {
-                return ServiceLifetime.Singleton;
+                services.TryAdd(serviceDescriptor);
             }
-
-            if (typeof(IScopedDependency).GetTypeInfo().IsAssignableFrom(type))
+            else
             {
-                return ServiceLifetime.Scoped;
+                services.Add(serviceDescriptor);
             }
-
-            return null;
         }
     }
 }

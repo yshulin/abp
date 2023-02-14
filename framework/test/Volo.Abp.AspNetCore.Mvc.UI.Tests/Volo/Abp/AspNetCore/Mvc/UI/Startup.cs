@@ -4,24 +4,17 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Volo.Abp.AspNetCore.Mvc.UI
+namespace Volo.Abp.AspNetCore.Mvc.UI;
+
+public class Startup
 {
-    public class Startup
+    public void ConfigureServices(IServiceCollection services)
     {
-        public IServiceProvider ConfigureServices(IServiceCollection services)
-        {
-            services.AddApplication<AbpAspNetCoreMvcUiTestModule>(options =>
-            {
-                options.UseAutofac();
-            });
+        services.AddApplication<AbpAspNetCoreMvcUiTestModule>();
+    }
 
-            //TODO: This is needed because ASP.NET Core does not use IServiceProviderFactory!
-            return services.BuildServiceProviderFromFactory();
-        }
-
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
-        {
-            app.InitializeApplication();
-        }
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory)
+    {
+        app.InitializeApplication();
     }
 }

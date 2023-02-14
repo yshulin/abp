@@ -1,40 +1,53 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Mongo2Go;
+﻿using System;
+using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.Data;
 using Volo.Abp.Modularity;
+using Volo.Abp.MongoDB.TestApp.FifthContext;
+using Volo.Abp.MongoDB.TestApp.SecondContext;
+using Volo.Abp.MongoDB.TestApp.ThirdDbContext;
+using Volo.Abp.MultiTenancy;
 using Volo.Abp.TestApp;
 using Volo.Abp.TestApp.Domain;
+using Volo.Abp.TestApp.MongoDb;
 using Volo.Abp.TestApp.MongoDB;
 
-namespace Volo.Abp.MongoDB
+namespace Volo.Abp.MongoDB;
+
+[DependsOn(
+    typeof(TestAppModule),
+    typeof(AbpMongoDbTestSecondContextModule)
+    )]
+public class AbpMongoDbTestModule : AbpModule
 {
-    [DependsOn(
-        typeof(AbpMongoDbModule),
-        typeof(TestAppModule)
-        )]
-    public class AbpMongoDbTestModule : AbpModule
+    public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        private MongoDbRunner _mongoDbRunner;
+        var stringArray = MongoDbFixture.ConnectionString.Split('?');
+        var connectionString = stringArray[0].EnsureEndsWith('/') +
+                                   "Db_" +
+                               Guid.NewGuid().ToString("N") + "/?" + stringArray[1];
 
-        public override void ConfigureServices(ServiceConfigurationContext context)
+        Configure<AbpDbConnectionOptions>(options =>
         {
-            _mongoDbRunner = MongoDbRunner.Start();
+            options.ConnectionStrings.Default = connectionString;
+        });
 
-            Configure<DbConnectionOptions>(options =>
-            {
-                options.ConnectionStrings.Default = _mongoDbRunner.ConnectionString;
-            });
-
-            context.Services.AddMongoDbContext<TestAppMongoDbContext>(options =>
-            {
-                options.AddDefaultRepositories<ITestAppMongoDbContext>();
-                options.AddRepository<City, CityRepository>();
-            });
-        }
-
-        public override void OnApplicationShutdown(ApplicationShutdownContext context)
+        context.Services.AddMongoDbContext<TestAppMongoDbContext>(options =>
         {
-            _mongoDbRunner.Dispose();
-        }
+            options.AddDefaultRepositories<ITestAppMongoDbContext>();
+            options.AddRepository<City, CityRepository>();
+
+            options.ReplaceDbContext<IThirdDbContext>();
+        });
+
+        context.Services.AddMongoDbContext<HostTestAppDbContext>(options =>
+        {
+            options.AddDefaultRepositories<IFifthDbContext>();
+            options.ReplaceDbContext<IFifthDbContext>(MultiTenancySides.Host);
+        });
+
+        context.Services.AddMongoDbContext<TenantTestAppDbContext>(options =>
+        {
+            options.AddDefaultRepositories<IFifthDbContext>();
+        });
     }
 }

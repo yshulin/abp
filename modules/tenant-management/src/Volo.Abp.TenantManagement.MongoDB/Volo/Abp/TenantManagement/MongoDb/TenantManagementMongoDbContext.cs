@@ -1,24 +1,20 @@
 ﻿using MongoDB.Driver;
 using Volo.Abp.Data;
 using Volo.Abp.MongoDB;
+using Volo.Abp.MultiTenancy;
 
-namespace Volo.Abp.TenantManagement.MongoDB
+namespace Volo.Abp.TenantManagement.MongoDB;
+
+[IgnoreMultiTenancy]
+[ConnectionStringName(AbpTenantManagementDbProperties.ConnectionStringName)]
+public class TenantManagementMongoDbContext : AbpMongoDbContext, ITenantManagementMongoDbContext
 {
-    [ConnectionStringName(AbpTenantManagementConsts.ConnectionStringName)]
-    public class TenantManagementMongoDbContext : AbpMongoDbContext, ITenantManagementMongoDbContext
+    public IMongoCollection<Tenant> Tenants => Collection<Tenant>();
+
+    protected override void CreateModel(IMongoModelBuilder modelBuilder)
     {
-        public static string CollectionPrefix { get; set; } = AbpTenantManagementConsts.DefaultDbTablePrefix;
+        base.CreateModel(modelBuilder);
 
-        public IMongoCollection<Tenant> Tenants => Collection<Tenant>();
-
-        protected override void CreateModel(IMongoModelBuilder modelBuilder)
-        {
-            base.CreateModel(modelBuilder);
-
-            modelBuilder.ConfigureTenantManagement(options =>
-            {
-                options.CollectionPrefix = CollectionPrefix;
-            });
-        }
+        modelBuilder.ConfigureTenantManagement();
     }
 }

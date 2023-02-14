@@ -1,94 +1,62 @@
 ﻿using System;
-using System.Linq;
-using System.Reflection;
 using AutoMapper;
+using AutoMapper.Internal;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Volo.Abp.Auditing;
 using Volo.Abp.Modularity;
+using Volo.Abp.ObjectExtending;
 using Volo.Abp.ObjectMapping;
-using Volo.Abp.Reflection;
 
-namespace Volo.Abp.AutoMapper
+namespace Volo.Abp.AutoMapper;
+
+[DependsOn(
+    typeof(AbpObjectMappingModule),
+    typeof(AbpObjectExtendingModule),
+    typeof(AbpAuditingModule)
+)]
+public class AbpAutoMapperModule : AbpModule
 {
-    [DependsOn(typeof(AbpObjectMappingModule))]
-    public class AbpAutoMapperModule : AbpModule
+    public override void PreConfigureServices(ServiceConfigurationContext context)
     {
-        public override void ConfigureServices(ServiceConfigurationContext context)
-        {
-            var mapperAccessor = new MapperAccessor();
-            context.Services.AddSingleton<IMapperAccessor>(_ => mapperAccessor);
-            context.Services.AddSingleton<MapperAccessor>(_ => mapperAccessor);
-        }
+        context.Services.AddConventionalRegistrar(new AbpAutoMapperConventionalRegistrar());
+    }
 
-        public override void OnPreApplicationInitialization(ApplicationInitializationContext context)
-        {
-            CreateMappings(context.ServiceProvider);
-        }
+    public override void ConfigureServices(ServiceConfigurationContext context)
+    {
+        context.Services.AddAutoMapperObjectMapper();
 
-        private void CreateMappings(IServiceProvider serviceProvider)
+        context.Services.AddSingleton<IConfigurationProvider>(sp =>
         {
-            using (var scope = serviceProvider.CreateScope())
+            using (var scope = sp.CreateScope())
             {
                 var options = scope.ServiceProvider.GetRequiredService<IOptions<AbpAutoMapperOptions>>().Value;
 
-                void ConfigureAll(IAbpAutoMapperConfigurationContext ctx)
-                {
-                    FindAndAutoMapTypes(ctx);
-                    foreach (var configurator in options.Configurators)
-                    {
-                        configurator(ctx);
-                    }
-                }
-
-                void ValidateAll(IConfigurationProvider config)
-                {
-                    foreach (var profileType in options.ValidatingProfiles)
-                    {
-                        config.AssertConfigurationIsValid(((Profile)Activator.CreateInstance(profileType)).ProfileName);
-                    }
-                }
-
                 var mapperConfiguration = new MapperConfiguration(mapperConfigurationExpression =>
                 {
-                    ConfigureAll(new AbpAutoMapperConfigurationContext(mapperConfigurationExpression, scope.ServiceProvider));
+                    var autoMapperConfigurationContext = new AbpAutoMapperConfigurationContext(mapperConfigurationExpression, scope.ServiceProvider);
+
+                    foreach (var configurator in options.Configurators)
+                    {
+                        configurator(autoMapperConfigurationContext);
+                    }
                 });
 
-                ValidateAll(mapperConfiguration);
+                foreach (var profileType in options.ValidatingProfiles)
+                {
+                    mapperConfiguration.Internal().AssertConfigurationIsValid(((Profile)Activator.CreateInstance(profileType)).ProfileName);
+                }
 
-                scope.ServiceProvider.GetRequiredService<MapperAccessor>().Mapper = mapperConfiguration.CreateMapper();
+                return mapperConfiguration;
             }
-        }
+        });
 
-        private void FindAndAutoMapTypes(IAbpAutoMapperConfigurationContext context)
+        context.Services.AddTransient<IMapper>(sp => sp.GetRequiredService<IConfigurationProvider>().CreateMapper(sp.GetService));
+
+        context.Services.AddTransient<MapperAccessor>(sp => new MapperAccessor()
         {
-            //TODO: AutoMapping (by attributes) can be optionally enabled/disabled.
-
-            var typeFinder = context.ServiceProvider.GetRequiredService<ITypeFinder>();
-            var logger = context.ServiceProvider.GetRequiredService<ILogger<AbpAutoMapperModule>>();
-
-            var types = typeFinder.Types.Where(type =>
-                {
-                    var typeInfo = type.GetTypeInfo();
-                    return typeInfo.IsDefined(typeof(AutoMapAttribute)) ||
-                           typeInfo.IsDefined(typeof(AutoMapFromAttribute)) ||
-                           typeInfo.IsDefined(typeof(AutoMapToAttribute));
-                }
-            ).ToArray();
-
-            if (types.Length <= 0)
-            {
-                logger.LogDebug($"No class found with auto mapping attributes.");
-            }
-            else
-            {
-                logger.LogDebug($"Found {types.Length} classes define auto mapping attributes.");
-                foreach (var type in types)
-                {
-                    logger.LogDebug(type.FullName);
-                    context.MapperConfiguration.CreateAutoAttributeMaps(type);
-                }
-            }
-        }
+            Mapper = sp.GetRequiredService<IMapper>()
+        });
+        context.Services.AddTransient<IMapperAccessor>(provider => provider.GetRequiredService<MapperAccessor>());
     }
 }

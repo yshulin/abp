@@ -26,8 +26,10 @@ Příkaz `new` vytvoří **vrstvenou MVC aplikaci** s **Entity Framework Core** 
 
 Vytvořené řešení vyžaduje;
 
-* [Visual Studio 2017 (v15.9.0+)](https://visualstudio.microsoft.com/tr/downloads/)
-* [.NET Core 2.2+](https://www.microsoft.com/net/download/dotnet-core/)
+* [Visual Studio 2019 (v16.4.0+)](https://visualstudio.microsoft.com/vs/)
+* [.NET Core 3.0+](https://www.microsoft.com/net/download/dotnet-core/)
+* [Node v12+](https://nodejs.org)
+* [Yarn v1.19+](https://classic.yarnpkg.com/)
 
 ### Struktura řešení
 
@@ -37,7 +39,7 @@ Otevřete řešení ve **Visual Studio**:
 
 Řešení má vrstvenou strukturu (založenou na [Domain Driven Design](Domain-Driven-Design.md)) a obsahuje projekty jednotkovových a integračních testů předkonfigurované pro práci s **EF Core** & **SQLite in-memory** databází.
 
-> Podívejte se na [dokument šablony MVC aplikace](Startup-Templates/Mvc.md) k detailnímu pochopení struktury řešení.
+> Podívejte se na [dokument šablony aplikace](Startup-Templates/Application.md) k detailnímu pochopení struktury řešení.
 
 ### Connection string databáze
 

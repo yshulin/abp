@@ -1,31 +1,26 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Mongo2Go;
+﻿using System;
 using Volo.Abp.Data;
 using Volo.Abp.Modularity;
+using Volo.Abp.Uow;
 
-namespace Volo.Abp.TenantManagement.MongoDB
+namespace Volo.Abp.TenantManagement.MongoDB;
+
+[DependsOn(
+    typeof(AbpTenantManagementMongoDbModule),
+    typeof(AbpTenantManagementTestBaseModule)
+    )]
+public class AbpTenantManagementMongoDbTestModule : AbpModule
 {
-    [DependsOn(
-        typeof(AbpTenantManagementMongoDbModule),
-        typeof(AbpTenantManagementTestBaseModule)
-        )]
-    public class AbpTenantManagementMongoDbTestModule : AbpModule
+    public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        private MongoDbRunner _mongoDbRunner;
+        var stringArray = MongoDbFixture.ConnectionString.Split('?');
+        var connectionString = stringArray[0].EnsureEndsWith('/') +
+                                   "Db_" +
+                               Guid.NewGuid().ToString("N") + "/?" + stringArray[1];
 
-        public override void ConfigureServices(ServiceConfigurationContext context)
+        Configure<AbpDbConnectionOptions>(options =>
         {
-            _mongoDbRunner = MongoDbRunner.Start();
-
-            Configure<DbConnectionOptions>(options =>
-            {
-                options.ConnectionStrings.Default = _mongoDbRunner.ConnectionString;
-            });
-        }
-
-        public override void OnApplicationShutdown(ApplicationShutdownContext context)
-        {
-            _mongoDbRunner.Dispose();
-        }
+            options.ConnectionStrings.Default = connectionString;
+        });
     }
 }

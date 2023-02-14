@@ -1,28 +1,33 @@
 ﻿using Volo.Abp.Application;
-using Volo.Abp.Localization;
+using Volo.Abp.Authorization;
 using Volo.Abp.Modularity;
-using Volo.Abp.TenantManagement.Localization;
-using Volo.Abp.VirtualFileSystem;
+using Volo.Abp.ObjectExtending;
+using Volo.Abp.ObjectExtending.Modularity;
+using Volo.Abp.Threading;
 
-namespace Volo.Abp.TenantManagement
+namespace Volo.Abp.TenantManagement;
+
+[DependsOn(
+    typeof(AbpDddApplicationContractsModule),
+    typeof(AbpTenantManagementDomainSharedModule),
+    typeof(AbpAuthorizationAbstractionsModule)
+    )]
+public class AbpTenantManagementApplicationContractsModule : AbpModule
 {
-    [DependsOn(typeof(AbpDddApplicationModule))]
-    [DependsOn(typeof(AbpTenantManagementDomainSharedModule))]
-    public class AbpTenantManagementApplicationContractsModule : AbpModule
-    {
-        public override void ConfigureServices(ServiceConfigurationContext context)
-        {
-            Configure<VirtualFileSystemOptions>(options =>
-            {
-                options.FileSets.AddEmbedded<AbpTenantManagementApplicationContractsModule>();
-            });
+    private static readonly OneTimeRunner OneTimeRunner = new OneTimeRunner();
 
-            Configure<AbpLocalizationOptions>(options =>
-            {
-                options.Resources
-                    .Get<AbpTenantManagementResource>()
-                    .AddVirtualJson("/Volo/Abp/TenantManagement/Localization/ApplicationContracts");
-            });
-        }
+    public override void PostConfigureServices(ServiceConfigurationContext context)
+    {
+        OneTimeRunner.Run(() =>
+        {
+            ModuleExtensionConfigurationHelper
+                .ApplyEntityConfigurationToApi(
+                    TenantManagementModuleExtensionConsts.ModuleName,
+                    TenantManagementModuleExtensionConsts.EntityNames.Tenant,
+                    getApiTypes: new[] { typeof(TenantDto) },
+                    createApiTypes: new[] { typeof(TenantCreateDto) },
+                    updateApiTypes: new[] { typeof(TenantUpdateDto) }
+                );
+        });
     }
 }

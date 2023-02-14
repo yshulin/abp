@@ -1,8 +1,12 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
+# generic ignore files
+*.gitignore.*
+
 # compiled output
 /tmp
 /out-tsc
+/dist
 # Only exists if Bazel was run
 /bazel-out
 
@@ -31,6 +35,7 @@ speed-measure-plugin.json
 .history/*
 
 # misc
+/.angular/cache
 /.sass-cache
 /connect.lock
 /coverage
@@ -40,10 +45,14 @@ yarn-error.log
 testem.log
 /typings
 yarn.lock
+package-lock.json
+
 
 # System Files
 .DS_Store
 Thumbs.db
 
-# Packages
 !**/[Pp]ackages/*
+*.internal.*
+
+.angular

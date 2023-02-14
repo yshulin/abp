@@ -1,40 +1,52 @@
-﻿using System.Security.Claims;
+﻿using System.Linq;
+using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.OAuth.Claims;
-using Newtonsoft.Json.Linq;
 
-namespace Volo.Abp.AspNetCore.Authentication.OAuth.Claims
+namespace Volo.Abp.AspNetCore.Authentication.OAuth.Claims;
+
+public class MultipleClaimAction : ClaimAction
 {
-    public class MultipleClaimAction : ClaimAction
+    public MultipleClaimAction(string claimType, string jsonKey)
+        : base(claimType, jsonKey)
     {
-        public MultipleClaimAction(string claimType, string jsonKey)
-            : base(claimType, jsonKey)
+
+    }
+
+    public override void Run(JsonElement userData, ClaimsIdentity identity, string issuer)
+    {
+        JsonElement prop;
+
+        if (!userData.TryGetProperty(ValueType, out prop))
+            return;
+
+        if (prop.ValueKind == JsonValueKind.Null)
         {
+            return;
         }
 
-        public override void Run(JObject userData, ClaimsIdentity identity, string issuer)
+        Claim claim;
+        switch (prop.ValueKind)
         {
-            var prop = userData?.Property(ValueType);
-            if (prop == null)
-            {
-                return;
-            }
-
-            var propValue = prop.Value;
-
-            switch (propValue.Type)
-            {
-                case JTokenType.String:
-                    identity.AddClaim(new Claim(ClaimType, propValue.Value<string>(), ValueType, issuer));
-                    break;
-                case JTokenType.Array:
-                    foreach (var innterValue in propValue.Values<string>())
+            case JsonValueKind.String:
+                claim = new Claim(ClaimType, prop.GetString(), ValueType, issuer);
+                if (!identity.Claims.Any(c => c.Type == claim.Type && c.Value == claim.Value))
+                {
+                    identity.AddClaim(claim);
+                }
+                break;
+            case JsonValueKind.Array:
+                foreach (var arramItem in prop.EnumerateArray())
+                {
+                    claim = new Claim(ClaimType, arramItem.GetString(), ValueType, issuer);
+                    if (!identity.Claims.Any(c => c.Type == claim.Type && c.Value == claim.Value))
                     {
-                        identity.AddClaim(new Claim(ClaimType, innterValue, ValueType, issuer));
+                        identity.AddClaim(claim);
                     }
-                    break;
-                default:
-                    throw new AbpException("Unhandled JTokenType: " + propValue.Type);
-            }
+                }
+                break;
+            default:
+                throw new AbpException("Unhandled JsonValueKind: " + prop.ValueKind);
         }
     }
 }

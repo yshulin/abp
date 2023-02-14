@@ -2,12 +2,13 @@
 using JetBrains.Annotations;
 using Volo.Abp.Application.Services;
 
-namespace Volo.Abp.FeatureManagement
-{
-    public interface IFeatureAppService : IApplicationService
-    {
-        Task<FeatureListDto> GetAsync([NotNull] string providerName, [NotNull] string providerKey); 
+namespace Volo.Abp.FeatureManagement;
 
-        Task UpdateAsync([NotNull] string providerName, [NotNull] string providerKey, UpdateFeaturesDto input); 
-    }
+public interface IFeatureAppService : IApplicationService
+{
+    Task<GetFeatureListResultDto> GetAsync([NotNull] string providerName, string providerKey);
+
+    Task UpdateAsync([NotNull] string providerName, string providerKey, UpdateFeaturesDto input);
+
+    Task DeleteAsync([NotNull] string providerName, string providerKey);
 }

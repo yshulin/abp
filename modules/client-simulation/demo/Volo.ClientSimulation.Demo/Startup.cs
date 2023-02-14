@@ -3,23 +3,17 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp;
 
-namespace Volo.ClientSimulation.Demo
+namespace Volo.ClientSimulation.Demo;
+
+public class Startup
 {
-    public class Startup
+    public void ConfigureServices(IServiceCollection services)
     {
-        public IServiceProvider ConfigureServices(IServiceCollection services)
-        {
-            services.AddApplication<ClientSimulationDemoModule>(options =>
-            {
-                options.UseAutofac();
-            });
+        services.AddApplication<ClientSimulationDemoModule>();
+    }
 
-            return services.BuildServiceProviderFromFactory();
-        }
-
-        public void Configure(IApplicationBuilder app)
-        {
-            app.InitializeApplication();
-        }
+    public void Configure(IApplicationBuilder app)
+    {
+        app.InitializeApplication();
     }
 }

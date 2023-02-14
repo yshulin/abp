@@ -1,11 +1,10 @@
-﻿using Volo.Abp.Modularity;
-using Volo.Abp.Timing;
+﻿using Volo.Abp.Json.SystemTextJson;
+using Volo.Abp.Modularity;
 
-namespace Volo.Abp.Json
+namespace Volo.Abp.Json;
+
+[DependsOn(typeof(AbpJsonSystemTextJsonModule))]
+public class AbpJsonModule : AbpModule
 {
-    [DependsOn(typeof(AbpTimingModule))]
-    public class AbpJsonModule : AbpModule
-    {
 
-    }
 }

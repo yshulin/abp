@@ -1,41 +1,24 @@
+import { HttpHandler, HttpHeaders, HttpInterceptor, HttpRequest } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { HttpInterceptor, HttpHandler, HttpRequest } from '@angular/common/http';
-import { OAuthService } from 'angular-oauth2-oidc';
-import { Store } from '@ngxs/store';
-import { SessionState } from '../states';
-import { LoaderStart, LoaderStop } from '../actions/loader.actions';
 import { finalize } from 'rxjs/operators';
+import { HttpWaitService } from '../services';
 
-@Injectable()
-export class ApiInterceptor implements HttpInterceptor {
-  constructor(private oAuthService: OAuthService, private store: Store) {}
+@Injectable({
+  providedIn: 'root',
+})
+export class ApiInterceptor implements IApiInterceptor {
+  constructor(private httpWaitService: HttpWaitService) {}
+
+  getAdditionalHeaders(existingHeaders?: HttpHeaders) {
+    return existingHeaders;
+  }
 
   intercept(request: HttpRequest<any>, next: HttpHandler) {
-    this.store.dispatch(new LoaderStart(request));
-
-    const headers = {} as any;
-
-    const token = this.oAuthService.getAccessToken();
-    if (!request.headers.has('Authorization') && token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const lang = this.store.selectSnapshot(SessionState.getLanguage);
-    if (!request.headers.has('Accept-Language') && lang) {
-      headers['Accept-Language'] = lang;
-    }
-
-    const tenant = this.store.selectSnapshot(SessionState.getTenant);
-    if (!request.headers.has('__tenant') && tenant) {
-      headers['__tenant'] = tenant.id;
-    }
-
-    return next
-      .handle(
-        request.clone({
-          setHeaders: headers,
-        }),
-      )
-      .pipe(finalize(() => this.store.dispatch(new LoaderStop(request))));
+    this.httpWaitService.addRequest(request);
+    return next.handle(request).pipe(finalize(() => this.httpWaitService.deleteRequest(request)));
   }
+}
+
+export interface IApiInterceptor extends HttpInterceptor {
+  getAdditionalHeaders(existingHeaders?: HttpHeaders): HttpHeaders;
 }

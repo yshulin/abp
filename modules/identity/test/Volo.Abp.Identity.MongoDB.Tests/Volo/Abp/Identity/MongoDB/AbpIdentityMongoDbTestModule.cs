@@ -1,33 +1,33 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Mongo2Go;
+﻿using System;
 using Volo.Abp.Data;
 using Volo.Abp.Modularity;
 using Volo.Abp.PermissionManagement.MongoDB;
+using Volo.Abp.Uow;
 
-namespace Volo.Abp.Identity.MongoDB
+namespace Volo.Abp.Identity.MongoDB;
+
+[DependsOn(
+    typeof(AbpIdentityTestBaseModule),
+    typeof(AbpPermissionManagementMongoDbModule),
+    typeof(AbpIdentityMongoDbModule)
+)]
+public class AbpIdentityMongoDbTestModule : AbpModule
 {
-    [DependsOn(
-        typeof(AbpIdentityTestBaseModule),
-        typeof(AbpPermissionManagementMongoDbModule),
-        typeof(AbpIdentityMongoDbModule)
-        )]
-    public class AbpIdentityMongoDbTestModule : AbpModule
+    public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        private MongoDbRunner _mongoDbRunner;
+        var stringArray = MongoDbFixture.ConnectionString.Split('?');
+        var connectionString = stringArray[0].EnsureEndsWith('/') +
+                                   "Db_" +
+                               Guid.NewGuid().ToString("N") + "/?" + stringArray[1];
 
-        public override void ConfigureServices(ServiceConfigurationContext context)
+        Configure<AbpDbConnectionOptions>(options =>
         {
-            _mongoDbRunner = MongoDbRunner.Start();
+            options.ConnectionStrings.Default = connectionString;
+        });
 
-            Configure<DbConnectionOptions>(options =>
-            {
-                options.ConnectionStrings.Default = _mongoDbRunner.ConnectionString;
-            });
-        }
-
-        public override void OnApplicationShutdown(ApplicationShutdownContext context)
+        Configure<AbpUnitOfWorkDefaultOptions>(options =>
         {
-            _mongoDbRunner.Dispose();
-        }
+            options.TransactionBehavior = UnitOfWorkTransactionBehavior.Disabled;
+        });
     }
 }

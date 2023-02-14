@@ -8,14 +8,14 @@ namespace Volo.Blogging.Posts
 {
     public class PostAuthorizationHandler : AuthorizationHandler<OperationAuthorizationRequirement, Post>
     {
-        private readonly IPermissionChecker _permissionChecker;
+        protected IPermissionChecker PermissionChecker { get; }
 
         public PostAuthorizationHandler(IPermissionChecker permissionChecker)
         {
-            _permissionChecker = permissionChecker;
+            PermissionChecker = permissionChecker;
         }
 
-        protected override async Task HandleRequirementAsync(
+        protected async override Task HandleRequirementAsync(
             AuthorizationHandlerContext context,
             OperationAuthorizationRequirement requirement,
             Post resource)
@@ -35,7 +35,12 @@ namespace Volo.Blogging.Posts
 
         private async Task<bool> HasDeletePermission(AuthorizationHandlerContext context, Post resource)
         {
-            if (await _permissionChecker.IsGrantedAsync(context.User, BloggingPermissions.Posts.Delete))
+            if (resource.CreatorId != null && resource.CreatorId == context.User.FindUserId())
+            {
+                return true;
+            }
+
+            if (await PermissionChecker.IsGrantedAsync(context.User, BloggingPermissions.Posts.Delete))
             {
                 return true;
             }
@@ -50,7 +55,7 @@ namespace Volo.Blogging.Posts
                 return true;
             }
 
-            if (await _permissionChecker.IsGrantedAsync(context.User, BloggingPermissions.Posts.Update))
+            if (await PermissionChecker.IsGrantedAsync(context.User, BloggingPermissions.Posts.Update))
             {
                 return true;
             }

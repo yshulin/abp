@@ -1,10 +1,20 @@
 ﻿using System;
 using Volo.Abp.Domain.Entities;
 
-namespace Volo.Abp.EntityFrameworkCore.TestApp.SecondContext
+namespace Volo.Abp.EntityFrameworkCore.TestApp.SecondContext;
+
+public class BookInSecondDbContext : AggregateRoot<Guid>
 {
-    public class BookInSecondDbContext : AggregateRoot<Guid>
+    public string Name { get; set; }
+
+    public BookInSecondDbContext()
     {
-        public string Name { get; set; }
+
+    }
+
+    public BookInSecondDbContext(Guid id, string name)
+        : base(id)
+    {
+        Name = name;
     }
 }

@@ -7,26 +7,27 @@ using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Caching;
 using Volo.Abp.Guids;
+using Volo.Docs.Caching;
 using Volo.Docs.Documents;
 
 namespace Volo.Docs.Projects
 {
-    public class ProjectAppService : ApplicationService, IProjectAppService
+    public class ProjectAppService : DocsAppServiceBase, IProjectAppService
     {
         private readonly IProjectRepository _projectRepository;
         private readonly IDistributedCache<List<VersionInfo>> _versionCache;
-        private readonly IDocumentStoreFactory _documentStoreFactory;
+        private readonly IDocumentSourceFactory _documentSource;
         protected IDistributedCache<LanguageConfig> LanguageCache { get; }
 
         public ProjectAppService(
             IProjectRepository projectRepository,
             IDistributedCache<List<VersionInfo>> versionCache,
-            IDocumentStoreFactory documentStoreFactory,
+            IDocumentSourceFactory documentSource,
             IDistributedCache<LanguageConfig> languageCache)
         {
             _projectRepository = projectRepository;
             _versionCache = versionCache;
-            _documentStoreFactory = documentStoreFactory;
+            _documentSource = documentSource;
             LanguageCache = languageCache;
         }
 
@@ -34,16 +35,22 @@ namespace Volo.Docs.Projects
         {
             var projects = await _projectRepository.GetListAsync();
 
-            return new ListResultDto<ProjectDto>(
+            var projectDtos = new List<ProjectDto>(
                 ObjectMapper.Map<List<Project>, List<ProjectDto>>(projects)
             );
+
+            return new ListResultDto<ProjectDto>(
+                projectDtos.Select(p => HidePrivateProperties(p)).ToList()
+            ); 
         }
 
         public async Task<ProjectDto> GetAsync(string shortName)
         {
             var project = await _projectRepository.GetByShortNameAsync(shortName);
 
-            return ObjectMapper.Map<Project, ProjectDto>(project);
+            var projectDto = ObjectMapper.Map<Project, ProjectDto>(project);
+
+            return HidePrivateProperties(projectDto);
         }
 
         public async Task<ListResultDto<VersionInfoDto>> GetVersionsAsync(string shortName)
@@ -51,7 +58,7 @@ namespace Volo.Docs.Projects
             var project = await _projectRepository.GetByShortNameAsync(shortName);
 
             var versions = await _versionCache.GetOrAddAsync(
-                project.ShortName,
+                CacheKeyGenerator.GenerateProjectVersionsCacheKey(project),
                 () => GetVersionsAsync(project),
                 () => new DistributedCacheEntryOptions
                 {
@@ -68,7 +75,7 @@ namespace Volo.Docs.Projects
 
         protected virtual async Task<List<VersionInfo>> GetVersionsAsync(Project project)
         {
-            var store = _documentStoreFactory.Create(project.DocumentStoreType);
+            var store = _documentSource.Create(project.DocumentStoreType);
             var versions = await store.GetVersionsAsync(project);
 
             if (!versions.Any())
@@ -85,11 +92,6 @@ namespace Volo.Docs.Projects
                 }
             }
 
-            if (versions.Any() && !string.IsNullOrEmpty(project.LatestVersionBranchName))
-            {
-                versions.First().Name = project.LatestVersionBranchName;
-            }
-
             return versions;
         }
 
@@ -98,7 +100,7 @@ namespace Volo.Docs.Projects
             return await GetLanguageListInternalAsync(shortName, version);
         }
 
-        public async Task<string> GetDefaultLanguageCode(string shortName, string version)
+        public async Task<string> GetDefaultLanguageCodeAsync(string shortName, string version)
         {
             var languageList = await GetLanguageListInternalAsync(shortName, version);
 
@@ -108,7 +110,9 @@ namespace Volo.Docs.Projects
         private async Task<LanguageConfig> GetLanguageListInternalAsync(string shortName, string version)
         {
             var project = await _projectRepository.GetByShortNameAsync(shortName);
-            var store = _documentStoreFactory.Create(project.DocumentStoreType);
+            var store = _documentSource.Create(project.DocumentStoreType);
+
+            version = GetProjectVersionPrefixIfExist(project) + version;
 
             async Task<LanguageConfig> GetLanguagesAsync()
             {
@@ -116,13 +120,47 @@ namespace Volo.Docs.Projects
             }
 
             return await LanguageCache.GetOrAddAsync(
-                project.ShortName,
+                CacheKeyGenerator.GenerateProjectLanguageCacheKey(project),
                 GetLanguagesAsync,
                 () => new DistributedCacheEntryOptions
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
                 }
             );
+        }
+
+        private string GetProjectVersionPrefixIfExist(Project project)
+        {
+            if (GetGithubVersionProviderSource(project) != GithubVersionProviderSource.Branches)
+            {
+                return string.Empty;
+            }
+
+            return project.ExtraProperties["VersionBranchPrefix"].ToString();
+
+        }
+
+        private GithubVersionProviderSource GetGithubVersionProviderSource(Project project)
+        {
+            return project.ExtraProperties.ContainsKey("GithubVersionProviderSource")
+                ? (GithubVersionProviderSource) (long) project.ExtraProperties["GithubVersionProviderSource"]
+                : GithubVersionProviderSource.Releases;
+        }
+
+        private ProjectDto HidePrivateProperties(ProjectDto project)
+        {
+            if (project.ExtraProperties.ContainsKey("GitHubAccessToken"))
+            {
+                project.ExtraProperties["GitHubAccessToken"] = null;
+            }
+
+            if (project.ExtraProperties.ContainsKey("GitHubUserAgent"))
+            {
+                project.ExtraProperties["GitHubUserAgent"] = null;
+            }
+
+
+            return project;
         }
     }
 }

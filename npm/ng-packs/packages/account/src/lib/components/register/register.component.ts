@@ -1,31 +1,64 @@
-import { ToasterService } from '@abp/ng.theme.shared';
-import { Component } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { validatePassword } from '@ngx-validate/core';
+import { AccountService, RegisterDto } from '@abp/ng.account.core/proxy';
+import { AuthService, ConfigStateService } from '@abp/ng.core';
+import { getPasswordValidators, ToasterService } from '@abp/ng.theme.shared';
+import { Component, Injector, OnInit } from '@angular/core';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { throwError } from 'rxjs';
-import { catchError, finalize, take } from 'rxjs/operators';
-import snq from 'snq';
-import { RegisterRequest } from '../../models';
-import { AccountService } from '../../services/account.service';
+import { catchError, finalize, switchMap } from 'rxjs/operators';
+import { eAccountComponents } from '../../enums/components';
+import { getRedirectUrl } from '../../utils/auth-utils';
 
-const { maxLength, minLength, required, email } = Validators;
+const { maxLength, required, email } = Validators;
 
 @Component({
   selector: 'abp-register',
   templateUrl: './register.component.html',
 })
-export class RegisterComponent {
-  form: FormGroup;
+export class RegisterComponent implements OnInit {
+  form: UntypedFormGroup;
 
   inProgress: boolean;
 
-  constructor(private fb: FormBuilder, private accountService: AccountService, private toasterService: ToasterService) {
+  isSelfRegistrationEnabled = true;
+
+  authWrapperKey = eAccountComponents.AuthWrapper;
+
+  constructor(
+    protected fb: UntypedFormBuilder,
+    protected accountService: AccountService,
+    protected configState: ConfigStateService,
+    protected toasterService: ToasterService,
+    protected authService: AuthService,
+    protected injector: Injector,
+  ) {}
+
+  ngOnInit() {
+    this.init();
+    this.buildForm();
+  }
+
+  protected init() {
+    this.isSelfRegistrationEnabled =
+      (this.configState.getSetting('Abp.Account.IsSelfRegistrationEnabled') || '').toLowerCase() !==
+      'false';
+
+    if (!this.isSelfRegistrationEnabled) {
+      this.toasterService.warn(
+        {
+          key: 'AbpAccount::SelfRegistrationDisabledMessage',
+          defaultValue: 'Self registration is disabled.',
+        },
+        null,
+        { life: 10000 },
+      );
+      return;
+    }
+  }
+
+  protected buildForm() {
     this.form = this.fb.group({
       username: ['', [required, maxLength(255)]],
-      password: [
-        '',
-        [required, maxLength(32), minLength(6), validatePassword(['small', 'capital', 'number', 'special'])],
-      ],
+      password: ['', [required, ...getPasswordValidators(this.injector)]],
       email: ['', [required, email]],
     });
   }
@@ -39,15 +72,28 @@ export class RegisterComponent {
       userName: this.form.get('username').value,
       password: this.form.get('password').value,
       emailAddress: this.form.get('email').value,
-      appName: 'angular',
-    } as RegisterRequest;
+      appName: 'Angular',
+    } as RegisterDto;
 
     this.accountService
       .register(newUser)
       .pipe(
-        take(1),
+        switchMap(() =>
+          this.authService.login({
+            username: newUser.userName,
+            password: newUser.password,
+            redirectUrl: getRedirectUrl(this.injector),
+          }),
+        ),
         catchError(err => {
-          this.toasterService.error(snq(() => err.error.error_description, 'An error occured.'), 'Error');
+          this.toasterService.error(
+            err.error?.error_description ||
+              err.error?.error.message ||
+              'AbpAccount::DefaultErrorMessage',
+            null,
+            { life: 7000 },
+          );
+
           return throwError(err);
         }),
         finalize(() => (this.inProgress = false)),

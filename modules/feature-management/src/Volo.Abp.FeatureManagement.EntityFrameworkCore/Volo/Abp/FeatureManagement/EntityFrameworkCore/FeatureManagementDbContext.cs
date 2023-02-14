@@ -1,33 +1,30 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Volo.Abp.Data;
 using Volo.Abp.EntityFrameworkCore;
+using Volo.Abp.MultiTenancy;
 
-namespace Volo.Abp.FeatureManagement.EntityFrameworkCore
+namespace Volo.Abp.FeatureManagement.EntityFrameworkCore;
+
+[IgnoreMultiTenancy]
+[ConnectionStringName(AbpFeatureManagementDbProperties.ConnectionStringName)]
+public class FeatureManagementDbContext : AbpDbContext<FeatureManagementDbContext>, IFeatureManagementDbContext
 {
-    [ConnectionStringName(FeatureManagementConsts.ConnectionStringName)]
-    public class FeatureManagementDbContext : AbpDbContext<FeatureManagementDbContext>, IFeatureManagementDbContext
+    public DbSet<FeatureGroupDefinitionRecord> FeatureGroups { get; set; }
+
+    public DbSet<FeatureDefinitionRecord> Features { get; set; }
+
+    public DbSet<FeatureValue> FeatureValues { get; set; }
+
+    public FeatureManagementDbContext(DbContextOptions<FeatureManagementDbContext> options)
+        : base(options)
     {
-        public static string TablePrefix { get; set; } = FeatureManagementConsts.DefaultDbTablePrefix;
 
-        public static string Schema { get; set; } = FeatureManagementConsts.DefaultDbSchema;
+    }
 
-        public DbSet<FeatureValue> FeatureValues { get; set; }
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
 
-        public FeatureManagementDbContext(DbContextOptions<FeatureManagementDbContext> options) 
-            : base(options)
-        {
-
-        }
-
-        protected override void OnModelCreating(ModelBuilder builder)
-        {
-            base.OnModelCreating(builder);
-
-            builder.ConfigureFeatureManagement(options =>
-            {
-                options.TablePrefix = TablePrefix;
-                options.Schema = Schema;
-            });
-        }
+        builder.ConfigureFeatureManagement();
     }
 }

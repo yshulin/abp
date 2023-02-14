@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Volo.Abp.Application.Services;
+using Volo.Abp.Data;
 using Volo.Abp.Guids;
 using Volo.Blogging.Comments.Dtos;
 using Volo.Blogging.Posts;
@@ -11,17 +11,15 @@ using Volo.Blogging.Users;
 
 namespace Volo.Blogging.Comments
 {
-    public class CommentAppService : ApplicationService, ICommentAppService
+    public class CommentAppService : BloggingAppServiceBase, ICommentAppService
     {
-        protected IBlogUserLookupService UserLookupService;
+        protected IBlogUserLookupService UserLookupService { get; }
 
-        private readonly ICommentRepository _commentRepository;
-        private readonly IGuidGenerator _guidGenerator;
+        protected ICommentRepository CommentRepository { get; }
 
-        public CommentAppService(ICommentRepository commentRepository, IGuidGenerator guidGenerator, IBlogUserLookupService userLookupService)
+        public CommentAppService(ICommentRepository commentRepository, IBlogUserLookupService userLookupService)
         {
-            _commentRepository = commentRepository;
-            _guidGenerator = guidGenerator;
+            CommentRepository = commentRepository;
             UserLookupService = userLookupService;
         }
 
@@ -74,7 +72,7 @@ namespace Volo.Blogging.Comments
 
         private async Task<List<CommentWithDetailsDto>> GetListOfPostAsync(Guid postId)
         {
-            var comments = await _commentRepository.GetListOfPostAsync(postId);
+            var comments = await CommentRepository.GetListOfPostAsync(postId);
 
             return new List<CommentWithDetailsDto>(
                 ObjectMapper.Map<List<Comment>, List<CommentWithDetailsDto>>(comments));
@@ -83,9 +81,11 @@ namespace Volo.Blogging.Comments
         [Authorize]
         public async Task<CommentWithDetailsDto> CreateAsync(CreateCommentDto input)
         {
-            var comment = new Comment(_guidGenerator.Create(), input.PostId, input.RepliedCommentId, input.Text);
+            var comment = new Comment(GuidGenerator.Create(), input.PostId, input.RepliedCommentId, input.Text);
 
-            comment = await _commentRepository.InsertAsync(comment);
+            comment = await CommentRepository.InsertAsync(comment);
+
+            await CurrentUnitOfWork.SaveChangesAsync();
 
             return ObjectMapper.Map<Comment, CommentWithDetailsDto>(comment);
         }
@@ -93,13 +93,14 @@ namespace Volo.Blogging.Comments
         [Authorize]
         public async Task<CommentWithDetailsDto> UpdateAsync(Guid id, UpdateCommentDto input)
         {
-            var comment = await _commentRepository.GetAsync(id);
+            var comment = await CommentRepository.GetAsync(id);
 
             await AuthorizationService.CheckAsync(comment, CommonOperations.Update);
 
             comment.SetText(input.Text);
+            comment.SetConcurrencyStampIfNotNull(input.ConcurrencyStamp);
 
-            comment = await _commentRepository.UpdateAsync(comment);
+            comment = await CommentRepository.UpdateAsync(comment);
 
             return ObjectMapper.Map<Comment, CommentWithDetailsDto>(comment);
         }
@@ -107,17 +108,17 @@ namespace Volo.Blogging.Comments
         [Authorize]
         public async Task DeleteAsync(Guid id)
         {
-            var comment = await _commentRepository.GetAsync(id);
+            var comment = await CommentRepository.GetAsync(id);
 
             await AuthorizationService.CheckAsync(comment, CommonOperations.Delete);
 
-            await _commentRepository.DeleteAsync(id);
+            await CommentRepository.DeleteAsync(id);
 
-            var replies = await _commentRepository.GetRepliesOfComment(id);
+            var replies = await CommentRepository.GetRepliesOfComment(id);
 
             foreach (var reply in replies)
             {
-                await _commentRepository.DeleteAsync(reply.Id);
+                await CommentRepository.DeleteAsync(reply.Id);
             }
         }
     }

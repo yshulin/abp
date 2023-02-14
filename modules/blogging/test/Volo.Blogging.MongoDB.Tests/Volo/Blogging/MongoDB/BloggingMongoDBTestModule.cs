@@ -1,7 +1,7 @@
-﻿using Mongo2Go;
-using Volo.Abp;
+﻿using System;
 using Volo.Abp.Data;
 using Volo.Abp.Modularity;
+using Volo.Abp.Uow;
 
 namespace Volo.Blogging.MongoDB
 {
@@ -11,21 +11,17 @@ namespace Volo.Blogging.MongoDB
     )]
     public class BloggingMongoDbTestModule : AbpModule
     {
-        private MongoDbRunner _mongoDbRunner;
-
         public override void ConfigureServices(ServiceConfigurationContext context)
         {
-            _mongoDbRunner = MongoDbRunner.Start();
+            var stringArray = MongoDbFixture.ConnectionString.Split('?');
+            var connectionString = stringArray[0].EnsureEndsWith('/')  +
+                                       "Db_" +
+                                   Guid.NewGuid().ToString("N") + "/?" + stringArray[1];
 
-            Configure<DbConnectionOptions>(options =>
+            Configure<AbpDbConnectionOptions>(options =>
             {
-                options.ConnectionStrings.Default = _mongoDbRunner.ConnectionString;
+                options.ConnectionStrings.Default = connectionString;
             });
-        }
-
-        public override void OnApplicationShutdown(ApplicationShutdownContext context)
-        {
-            _mongoDbRunner.Dispose();
         }
     }
 }

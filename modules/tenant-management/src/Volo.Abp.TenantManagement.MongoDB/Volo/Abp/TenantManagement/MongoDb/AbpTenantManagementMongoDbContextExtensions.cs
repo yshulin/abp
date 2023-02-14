@@ -1,24 +1,17 @@
-﻿using System;
-using Volo.Abp.MongoDB;
+﻿using Volo.Abp.MongoDB;
 
-namespace Volo.Abp.TenantManagement.MongoDB
+namespace Volo.Abp.TenantManagement.MongoDB;
+
+public static class AbpTenantManagementMongoDbContextExtensions
 {
-    public static class AbpTenantManagementMongoDbContextExtensions
+    public static void ConfigureTenantManagement(
+        this IMongoModelBuilder builder)
     {
-        public static void ConfigureTenantManagement(
-            this IMongoModelBuilder builder,
-            Action<MongoModelBuilderConfigurationOptions> optionsAction = null)
+        Check.NotNull(builder, nameof(builder));
+
+        builder.Entity<Tenant>(b =>
         {
-            Check.NotNull(builder, nameof(builder));
-
-            var options = new TenantManagementMongoModelBuilderConfigurationOptions();
-
-            optionsAction?.Invoke(options);
-
-            builder.Entity<Tenant>(b =>
-            {
-                b.CollectionName = options.CollectionPrefix + "Tenants";
-            });
-        }
+            b.CollectionName = AbpTenantManagementDbProperties.DbTablePrefix + "Tenants";
+        });
     }
 }

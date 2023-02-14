@@ -1,16 +1,17 @@
 ﻿using AutoMapper;
 using Volo.Abp.AutoMapper;
 
-namespace Volo.Abp.BackgroundJobs
+namespace Volo.Abp.BackgroundJobs;
+
+public class BackgroundJobsDomainAutoMapperProfile : Profile
 {
-    public class BackgroundJobsDomainAutoMapperProfile : Profile
+    public BackgroundJobsDomainAutoMapperProfile()
     {
-        public BackgroundJobsDomainAutoMapperProfile()
-        {
-            CreateMap<BackgroundJobInfo, BackgroundJobRecord>()
-                .Ignore(record => record.ConcurrencyStamp)
-                .Ignore(record => record.ExtraProperties)
-                .ReverseMap();
-        }
+        CreateMap<BackgroundJobInfo, BackgroundJobRecord>()
+            .ConstructUsing(x => new BackgroundJobRecord(x.Id))
+            .Ignore(record => record.ConcurrencyStamp)
+            .Ignore(record => record.ExtraProperties);
+
+        CreateMap<BackgroundJobRecord, BackgroundJobInfo>();
     }
 }
