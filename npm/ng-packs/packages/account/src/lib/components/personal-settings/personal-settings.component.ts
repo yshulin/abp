@@ -11,7 +11,7 @@ import {
   EXTENSIONS_IDENTIFIER,
   FormPropData,
   generateFormFromProps,
-} from '@abp/ng.theme.shared/extensions';
+} from '@abp/ng.components/extensible';
 import { eAccountComponents } from '../../enums';
 
 @Component({
@@ -31,11 +31,11 @@ export class PersonalSettingsComponent
     Account.PersonalSettingsComponentInputs,
     Account.PersonalSettingsComponentOutputs
 {
-  selected: ProfileDto;
+  selected?: ProfileDto;
 
-  form: UntypedFormGroup;
+  form!: UntypedFormGroup;
 
-  inProgress: boolean;
+  inProgress?: boolean;
 
   constructor(
     private fb: UntypedFormBuilder,

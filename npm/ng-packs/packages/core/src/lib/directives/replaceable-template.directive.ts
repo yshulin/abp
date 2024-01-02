@@ -1,5 +1,4 @@
 import {
-  ComponentRef,
   Directive,
   Injector,
   Input,
@@ -19,12 +18,13 @@ import { ReplaceableComponentsService } from '../services/replaceable-components
 import { SubscriptionService } from '../services/subscription.service';
 
 @Directive({
+  standalone: true,
   selector: '[abpReplaceableTemplate]',
   providers: [SubscriptionService],
 })
 export class ReplaceableTemplateDirective implements OnInit, OnChanges {
   @Input('abpReplaceableTemplate')
-  data: ReplaceableComponents.ReplaceableTemplateDirectiveInput<any, any>;
+  data!: ReplaceableComponents.ReplaceableTemplateDirectiveInput<any, any>;
 
   providedData = {
     inputs: {},
@@ -140,11 +140,15 @@ export class ReplaceableTemplateDirective implements OnInit, OnChanges {
           [key]: {
             enumerable: true,
             configurable: true,
-            get: () => this.data.inputs[key]?.value,
-            ...(this.data.inputs[key]?.twoWay && {
+            get: () => this.data.inputs?.[key]?.value,
+            ...(this.data.inputs?.[key]?.twoWay && {
               set: (newValue: any) => {
-                this.data.inputs[key].value = newValue;
-                this.data.outputs[`${key}Change`](newValue);
+                if (this.data.inputs?.[key]) {
+                  this.data.inputs[key].value = newValue;
+                }
+                if (this.data.outputs?.[`${key}Change`]) {
+                  this.data.outputs[`${key}Change`](newValue);
+                }
               },
             }),
           },

@@ -6,10 +6,11 @@
 [![NuGet (with prereleases)](https://img.shields.io/nuget/vpre/Volo.Abp.Core.svg?style=flat-square)](https://www.nuget.org/packages/Volo.Abp.Core)
 [![MyGet (nightly builds)](https://img.shields.io/myget/abp-nightly/vpre/Volo.Abp.svg?style=flat-square)](https://docs.abp.io/en/abp/latest/Nightly-Builds)
 [![NuGet Download](https://img.shields.io/nuget/dt/Volo.Abp.Core.svg?style=flat-square)](https://www.nuget.org/packages/Volo.Abp.Core)
-
+[![Code of Conduct](https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg)](https://github.com/abpframework/abp/blob/dev/CODE_OF_CONDUCT.md)
+[![CLA Signed](https://cla-assistant.io/readme/badge/abpframework/abp)](https://cla-assistant.io/abpframework/abp)
 [![ABP Discord server](https://img.shields.io/discord/951497912645476422?label=Discord)](https://discord.gg/abp)
 
-ABP Framework is a complete **infrastructure** based on the **ASP.NET Core** to create **modern web applications** and **APIs** by following the software development **best practices** and the **latest technologies**. Check out https://abp.io
+ABP Framework is a complete **infrastructure** based on **ASP.NET Core** to create **modern web applications** and **APIs** by following the software development **best practices** and the **latest technologies**. Check out https://abp.io
 
 ## Getting Started
 
@@ -41,6 +42,16 @@ Create a new solution:
 
 <img width="500" src="docs/en/images/db-options.png">
 
+## The Book: Mastering ABP Framework
+
+Written by the creator of ABP Framework, this book will help you to gain a complete understanding of the ABP Framework and modern web application development techniques.
+
+* [Buy on Amazon](https://www.amazon.com/gp/product/B097Z2DM8Q)
+* [Buy on Packt Publishing](https://www.packtpub.com/product/mastering-abp-framework/9781801079242)
+* [More details about the book](https://abp.io/books/mastering-abp-framework)
+
+![book-mastering-abp-framework](docs/en/images/book-mastering-abp-framework.png)
+
 ## What ABP Provides?
 
 ABP provides a **full stack developer experience**.
@@ -49,7 +60,7 @@ ABP provides a **full stack developer experience**.
 
 <img src="docs/en/images/ddd-microservice-simple.png">
 
-ABP offers a complete, **modular** and **layered** software architecture based on **[Domain Driven Design](https://docs.abp.io/en/abp/latest/Domain-Driven-Design)** principles and patterns. It also provides the necessary infrastructure and guiding to [implement this architecture](https://docs.abp.io/en/abp/latest/Domain-Driven-Design-Implementation-Guide).
+ABP offers a complete, **modular** and **layered** software architecture based on **[Domain Driven Design](https://docs.abp.io/en/abp/latest/Domain-Driven-Design)** principles and patterns. It also provides the necessary infrastructure and guidance to [implement this architecture](https://docs.abp.io/en/abp/latest/Domain-Driven-Design-Implementation-Guide).
 
 ABP Framework is suitable for **[microservice solutions](https://docs.abp.io/en/abp/latest/Microservice-Architecture)** as well as monolithic applications.
 

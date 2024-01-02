@@ -32,6 +32,18 @@ var abp = abp || {};
         }
 
         var _createDropdownItem = function (record, fieldItem, tableInstance) {
+            if (fieldItem.divider) {
+                if (abp.utils.isFunction(fieldItem.divider)) {
+                    return $(fieldItem.divider(record, tableInstance));
+                }
+
+                if (fieldItem.divider === true) {
+                    return $('<li><hr class="dropdown-divider"></li>');
+                }
+
+                return $(fieldItem.divider);
+            }
+
             var $li = $('<li/>');
             var $a = $('<a/>').addClass('dropdown-item');
 
@@ -72,7 +84,7 @@ var abp = abp || {};
         };
 
         var _createButtonDropdown = function (record, field, tableInstance) {
-            if(field.items.length === 1) {
+            if (field.items.length === 1) {
                 var firstItem = field.items[0];
                 if (!getVisibilityValue(firstItem.visible, record, tableInstance)) {
                     return "";
@@ -174,6 +186,15 @@ var abp = abp || {};
 
             $dropdownButton.prependTo($container);
 
+            if (bootstrap) {
+                new bootstrap.Dropdown($dropdownButton, {
+                    popperConfig(defaultBsPopperConfig) {
+                        defaultBsPopperConfig.strategy = "fixed";
+                        return defaultBsPopperConfig;
+                    }
+                })
+            }
+
             return $container;
         };
 
@@ -227,8 +248,6 @@ var abp = abp || {};
                 return;
             }
 
-            var cells = $(nRow).children("td");
-
             for (var colIndex = 0; colIndex < columns.length; colIndex++) {
                 var column = columns[colIndex];
                 if (column.rowAction) {
@@ -236,9 +255,16 @@ var abp = abp || {};
                     hideEmptyColumn($actionContainer, tableInstance, colIndex);
 
                     if ($actionContainer) {
-                        var $actionButton = $(cells[colIndex]).find(".abp-action-button");
-                        if ($actionButton.length === 0) {
-                            $(cells[colIndex]).empty().append($actionContainer);
+                        var cells = $(nRow).children("td");
+                        for (var i = 0; i < cells.length; i++) {
+                            var cell = cells[i];
+                            if (cell._DT_CellIndex && cell._DT_CellIndex.row === iDisplayIndex && cell._DT_CellIndex.column === colIndex) {
+                                var $actionButton = $(cell).find(".abp-action-button");
+                                if ($actionButton.length === 0) {
+                                    $(cell).empty().append($actionContainer);
+                                };
+                                break;
+                            }
                         }
                     }
                 }
@@ -320,6 +346,19 @@ var abp = abp || {};
                 }
             });
 
+        $.fn.dataTable.Api.register('ajax.reloadEx()', function (callback, resetPaging) {
+            var table = this;
+            if (callback || resetPaging) {
+                table.ajax.reload(callback, resetPaging);
+                return;
+            }
+            table.ajax.reload(function (data) {
+                if (data.data.length <= 0 && table.page.info().pages > 0) {
+                    table.page(table.page.info().pages - 1).draw(false);
+                }
+            }, false);
+        });
+
     })();
 
     /************************************************************************
@@ -327,7 +366,7 @@ var abp = abp || {};
      *************************************************************************/
     (function () {
         datatables.createAjax = function (serverMethod, inputAction, responseCallback, cancelPreviousRequest) {
-            responseCallback = responseCallback || function(result) {
+            responseCallback = responseCallback || function (result) {
                 return {
                     recordsTotal: result.totalCount,
                     recordsFiltered: result.totalCount,
@@ -365,7 +404,7 @@ var abp = abp || {};
                 }
 
                 //Text filter
-                if(settings.oInit.searching !== false){
+                if (settings.oInit.searching !== false) {
                     if (requestData.search && requestData.search.value !== "") {
                         input.filter = requestData.search.value;
                     } else {
@@ -374,7 +413,7 @@ var abp = abp || {};
                 }
 
                 if (callback) {
-                    if(cancelPreviousRequest && promise && promise.jqXHR) {
+                    if (cancelPreviousRequest && promise && promise.jqXHR) {
                         promise.jqXHR.abort();
                     }
                     promise = serverMethod(input);
@@ -431,7 +470,7 @@ var abp = abp || {};
 
             configuration.language = datatables.defaultConfigurations.language();
 
-            if(!configuration.dom){
+            if (!configuration.dom) {
                 configuration.dom = datatables.defaultConfigurations.dom;
             }
 
@@ -445,7 +484,7 @@ var abp = abp || {};
 
     datatables.defaultRenderers = datatables.defaultRenderers || {};
 
-    datatables.defaultRenderers['boolean'] = function(value) {
+    datatables.defaultRenderers['boolean'] = function (value) {
         if (value) {
             return '<i class="fa fa-check"></i>';
         } else {
@@ -454,7 +493,7 @@ var abp = abp || {};
     };
 
     var ISOStringToDateTimeLocaleString = function (format) {
-        return function(data) {
+        return function (data) {
             var date = luxon
                 .DateTime
                 .fromISO(data, {
@@ -465,7 +504,7 @@ var abp = abp || {};
     };
 
     datatables.defaultRenderers['date'] = function (value) {
-        if(!value) {
+        if (!value) {
             return value;
         } else {
             return (ISOStringToDateTimeLocaleString())(value);
@@ -473,7 +512,7 @@ var abp = abp || {};
     };
 
     datatables.defaultRenderers['datetime'] = function (value) {
-        if(!value) {
+        if (!value) {
             return value;
         } else {
             return (ISOStringToDateTimeLocaleString(luxon.DateTime.DATETIME_SHORT))(value);

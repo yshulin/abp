@@ -48,7 +48,7 @@ This documentation has a video tutorial on **YouTube**!! You can watch it here:
 
 ## Pre-Requirements
 
-* An IDE (e.g. [Visual Studio](https://visualstudio.microsoft.com/vs/)) that supports [.NET 7.0+](https://dotnet.microsoft.com/download/dotnet) development.
+* An IDE (e.g. [Visual Studio](https://visualstudio.microsoft.com/vs/)) that supports [.NET 8.0+](https://dotnet.microsoft.com/download/dotnet) development.
 * [Node v16.x](https://nodejs.org/)
 
 {{if DB=="Mongo"}}
@@ -101,6 +101,38 @@ dotnet run --migrate-database
 
 This command will create the database and seed the initial data for you. Then you can run the application.
 
+### Before Running the Application
+
+#### Installing the Client-Side Packages
+
+[ABP CLI](../../../CLI.md) runs the `abp install-libs` command behind the scenes to install the required NPM packages for your solution while creating the application. 
+
+However, sometimes this command might need to be manually run. For example, you need to run this command, if you have cloned the application, or the resources from *node_modules* folder didn't copy to *wwwroot/libs* folder, or if you have added a new client-side package dependency to your solution.
+
+For such cases, run the `abp install-libs` command on the root directory of your solution to install all required NPM packages:
+
+```bash
+abp install-libs
+```
+
+> We suggest you install [Yarn](https://classic.yarnpkg.com/) to prevent possible package inconsistencies, if you haven't installed it yet.
+
+{{if UI=="Blazor" || UI=="BlazorServer"}}
+
+#### Bundling and Minification
+
+`abp bundle` command offers bundling and minification support for client-side resources (JavaScript and CSS files) for Blazor projects. This command automatically run when you create a new solution with the [ABP CLI](../../../CLI.md).
+
+However, sometimes you might need to run this command manually. To update script & style references without worrying about dependencies, ordering, etc. in a project, you can run this command in the directory of your blazor application:
+
+```bash
+abp bundle
+```
+
+> For more details about managing style and script references in Blazor or MAUI Blazor apps, see [Managing Global Scripts & Styles](../../../UI/Blazor/Global-Scripts-Styles.md).
+
+{{end}}
+
 ### Run the Application
 
 {{if UI=="MVC" || UI=="BlazorServer"}}
@@ -151,7 +183,7 @@ This application will have a single [entity](../../../Entities.md) and we can st
 ````csharp
 using Volo.Abp.Domain.Entities;
 
-namespace TodoApp{{if UI=="Blazor"}}.Host.{{end}}Entities;
+namespace TodoApp{{if UI=="Blazor"}}.{{end}}Entities;
 
 public class TodoItem : BasicAggregateRoot<Guid>
 {
@@ -255,7 +287,7 @@ Before starting to implement these use cases, first we need to create a DTO clas
 [Application services](../../../Application-Services.md) typically get and return DTOs ([Data Transfer Objects](../../../Data-Transfer-Objects.md)) instead of entities. So, create a new `TodoItemDto` class under the `Services/Dtos` folder{{if UI=="Blazor"}} of your `TodoApp.Contracts` project{{end}}:
 
 ```csharp
-namespace TodoApp{{if UI=="Blazor"}}.Contracts{{end}}.Services.Dtos;
+namespace TodoApp.Services.Dtos;
 
 public class TodoItemDto
 {
@@ -273,10 +305,10 @@ This is a very simple DTO class that has the same properties as the `TodoItem` e
 Create a `ITodoAppService` interface under the `Services` folder of the `TodoApp.Contracts` project, as shown below:
 
 ```csharp
-using TodoApp.Contracts.Services.Dtos;
+using TodoApp.Services.Dtos;
 using Volo.Abp.Application.Services;
 
-namespace TodoApp.Contracts.Services;
+namespace TodoApp.Services;
 
 public interface ITodoAppService : IApplicationService
 {
@@ -296,17 +328,18 @@ Create a `TodoAppService` class under the `Services` folder of {{if UI=="Blazor"
 
 ```csharp
 {{if UI=="Blazor"}}
-using TodoApp.Contracts.Services;
-using TodoApp.Contracts.Services.Dtos;
-using TodoApp.Host.Entities;
+using TodoApp.Services;
+using TodoApp.Services.Dtos;
+using TodoApp.Entities;
 using Volo.Abp.Application.Services;
+using Volo.Abp.Domain.Repositories;
 {{else}}
 using TodoApp.Entities;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
 {{end}}
 
-namespace TodoApp{{if UI=="Blazor"}}.Host{{end}}.Services;
+namespace TodoApp.Services;
 
 public class TodoAppService : ApplicationService{{if UI=="Blazor"}}, ITodoAppService{{end}}
 {
@@ -562,8 +595,8 @@ Open the `Index.razor.cs` file in the `Pages` folder{{if UI=="Blazor"}} in your 
 ```csharp
 {{if UI=="Blazor"}}
 using Microsoft.AspNetCore.Components;
-using TodoApp.Contracts.Services;
-using TodoApp.Contracts.Services.Dtos;
+using TodoApp.Services;
+using TodoApp.Services.Dtos;
 {{else}}
 using Microsoft.AspNetCore.Components;
 using TodoApp.Services;

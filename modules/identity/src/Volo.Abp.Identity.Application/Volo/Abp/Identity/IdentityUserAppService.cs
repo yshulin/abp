@@ -140,6 +140,7 @@ public class IdentityUserAppService : IdentityAppServiceBase, IIdentityUserAppSe
     [Authorize(IdentityPermissions.Users.Update)]
     public virtual async Task UpdateRolesAsync(Guid id, IdentityUserUpdateRolesDto input)
     {
+        await IdentityOptions.SetAsync();
         var user = await UserManager.GetByIdAsync(id);
         (await UserManager.SetRolesAsync(user, input.RoleNames)).CheckErrors();
         await UserRepository.UpdateAsync(user);
@@ -173,7 +174,10 @@ public class IdentityUserAppService : IdentityAppServiceBase, IIdentityUserAppSe
             (await UserManager.SetPhoneNumberAsync(user, input.PhoneNumber)).CheckErrors();
         }
 
-        (await UserManager.SetLockoutEnabledAsync(user, input.LockoutEnabled)).CheckErrors();
+        if (user.Id != CurrentUser.Id)
+        {
+            (await UserManager.SetLockoutEnabledAsync(user, input.LockoutEnabled)).CheckErrors();
+        }
 
         user.Name = input.Name;
         user.Surname = input.Surname;

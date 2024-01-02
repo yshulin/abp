@@ -1,8 +1,9 @@
 ﻿using System;
+using Volo.Abp.ObjectExtending;
 
 namespace Volo.CmsKit.Pages;
 
-public class PageCacheItem
+public class PageCacheItem : ExtensibleObject
 {
     public Guid Id { get; set; }
     
@@ -15,4 +16,9 @@ public class PageCacheItem
     public string Script { get; set; }
 
     public string Style { get; set; }
+
+    public static string GetKey(string slug)
+    {
+        return $"CmsPage_{slug}";
+    }
 }

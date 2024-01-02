@@ -24,6 +24,7 @@ import { ToInjectorPipe } from './pipes/to-injector.pipe';
 import { CookieLanguageProvider } from './providers/cookie-language.provider';
 import { LocaleProvider } from './providers/locale.provider';
 import { LocalizationService } from './services/localization.service';
+import { OTHERS_GROUP } from './tokens';
 import { localizationContributor, LOCALIZATIONS } from './tokens/localization.token';
 import { CORE_OPTIONS, coreOptionsFactory } from './tokens/options.token';
 import { TENANT_KEY } from './tokens/tenant-key.token';
@@ -33,10 +34,26 @@ import { getInitialData, localeInitializer } from './utils/initial-utils';
 import { ShortDateTimePipe } from './pipes/short-date-time.pipe';
 import { ShortTimePipe } from './pipes/short-time.pipe';
 import { ShortDatePipe } from './pipes/short-date.pipe';
+import { SafeHtmlPipe } from './pipes/safe-html.pipe';
 import { QUEUE_MANAGER } from './tokens/queue.token';
 import { DefaultQueueManager } from './utils/queue';
 import { IncludeLocalizationResourcesProvider } from './providers/include-localization-resources.provider';
+import { SORT_COMPARE_FUNC, compareFuncFactory } from './tokens/compare-func.token';
+import { AuthErrorFilterService } from './abstracts';
+import { DYNAMIC_LAYOUTS_TOKEN } from "./tokens/dynamic-layout.token";
+import { DEFAULT_DYNAMIC_LAYOUTS } from "./constants";
 
+
+const standaloneDirectives = [
+  AutofocusDirective,
+  InputEventDebounceDirective,
+  ForDirective,
+  FormSubmitDirective,
+  InitDirective,
+  PermissionDirective,
+  ReplaceableTemplateDirective,
+  StopPropagationDirective,
+];
 /**
  * BaseCoreModule is the module that holds
  * all imports, declarations, exports, and entryComponents
@@ -52,22 +69,16 @@ import { IncludeLocalizationResourcesProvider } from './providers/include-locali
     RouterModule,
     LocalizationModule,
     AbstractNgModelComponent,
-    AutofocusDirective,
     DynamicLayoutComponent,
-    ForDirective,
-    FormSubmitDirective,
-    InitDirective,
-    InputEventDebounceDirective,
-    PermissionDirective,
     ReplaceableRouteContainerComponent,
-    ReplaceableTemplateDirective,
     RouterOutletComponent,
     SortPipe,
-    StopPropagationDirective,
+    SafeHtmlPipe,
     ToInjectorPipe,
     ShortDateTimePipe,
     ShortTimePipe,
     ShortDatePipe,
+    ...standaloneDirectives,
   ],
   imports: [
     CommonModule,
@@ -76,21 +87,15 @@ import { IncludeLocalizationResourcesProvider } from './providers/include-locali
     ReactiveFormsModule,
     RouterModule,
     LocalizationModule,
+    ...standaloneDirectives,
   ],
   declarations: [
     AbstractNgModelComponent,
-    AutofocusDirective,
     DynamicLayoutComponent,
-    ForDirective,
-    FormSubmitDirective,
-    InitDirective,
-    InputEventDebounceDirective,
-    PermissionDirective,
     ReplaceableRouteContainerComponent,
-    ReplaceableTemplateDirective,
     RouterOutletComponent,
     SortPipe,
-    StopPropagationDirective,
+    SafeHtmlPipe,
     ToInjectorPipe,
     ShortDateTimePipe,
     ShortTimePipe,
@@ -173,10 +178,23 @@ export class CoreModule {
           deps: [LocalizationService],
         },
         {
+          provide: SORT_COMPARE_FUNC,
+          useFactory: compareFuncFactory,
+        },
+        {
           provide: QUEUE_MANAGER,
           useClass: DefaultQueueManager,
         },
+        {
+          provide: OTHERS_GROUP,
+          useValue: options.othersGroup || 'AbpUi::OthersGroup',
+        },
+        AuthErrorFilterService,
         IncludeLocalizationResourcesProvider,
+        {
+          provide: DYNAMIC_LAYOUTS_TOKEN,
+          useValue: options.dynamicLayouts || DEFAULT_DYNAMIC_LAYOUTS
+        }
       ],
     };
   }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
@@ -14,7 +14,7 @@ public abstract class ChallengeAccountController : AbpController
     protected string AuthenticationType { get; }
     protected string[] ForbidSchemes { get; }
 
-    protected ChallengeAccountController(string[] challengeAuthenticationSchemas = null)
+    protected ChallengeAccountController(string[]? challengeAuthenticationSchemas = null)
     {
         ChallengeAuthenticationSchemas = challengeAuthenticationSchemas ?? new[] { "oidc" };
         AuthenticationType = "Identity.Application";
@@ -61,19 +61,26 @@ public abstract class ChallengeAccountController : AbpController
     }
 
     [HttpGet]
-    public virtual Task<IActionResult> AccessDenied(string returnUrl = "", string returnUrlHash = "")
+    public virtual Task<IActionResult> AccessDenied()
     {
         return Task.FromResult<IActionResult>(Challenge(
             new AuthenticationProperties
             {
-                RedirectUri = GetRedirectUrl(returnUrl, returnUrlHash)
+                RedirectUri = "/"
             },
-            ForbidSchemes.IsNullOrEmpty()
+            (ForbidSchemes.IsNullOrEmpty()
                 ? new[]
                 {
                     HttpContext.RequestServices.GetRequiredService<IOptions<AuthenticationOptions>>().Value.DefaultForbidScheme
                 }
-                : ForbidSchemes
+                : ForbidSchemes)!
         ));
+    }
+
+    [HttpGet]
+    public virtual async Task<ActionResult> Challenge(string returnUrl = "", string returnUrlHash = "")
+    {
+        await HttpContext.SignOutAsync();
+        return Challenge(new AuthenticationProperties { RedirectUri = GetRedirectUrl(returnUrl, returnUrlHash) }, ChallengeAuthenticationSchemas);
     }
 }

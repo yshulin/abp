@@ -4,6 +4,8 @@ using Blazorise.Bootstrap5;
 using Blazorise.Icons.FontAwesome;
 using Medallion.Threading;
 using Medallion.Threading.Redis;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
@@ -42,6 +44,7 @@ using Volo.Abp.Identity.Blazor.Server;
 using Volo.Abp.Localization;
 using Volo.Abp.Modularity;
 using Volo.Abp.MultiTenancy;
+using Volo.Abp.Security.Claims;
 using Volo.Abp.SettingManagement.Blazor.Server;
 using Volo.Abp.Swashbuckle;
 using Volo.Abp.TenantManagement.Blazor.Server;
@@ -163,11 +166,12 @@ public class MyProjectNameBlazorModule : AbpModule
             .AddCookie("Cookies", options =>
             {
                 options.ExpireTimeSpan = TimeSpan.FromDays(365);
+                options.IntrospectAccessToken();
             })
             .AddAbpOpenIdConnect("oidc", options =>
             {
                 options.Authority = configuration["AuthServer:Authority"];
-                options.RequireHttpsMetadata = Convert.ToBoolean(configuration["AuthServer:RequireHttpsMetadata"]);
+                options.RequireHttpsMetadata = configuration.GetValue<bool>("AuthServer:RequireHttpsMetadata");
                 options.ResponseType = OpenIdConnectResponseType.CodeIdToken;
 
                 options.ClientId = configuration["AuthServer:ClientId"];
@@ -181,6 +185,54 @@ public class MyProjectNameBlazorModule : AbpModule
                 options.Scope.Add("phone");
                 options.Scope.Add("MyProjectName");
             });
+            /*
+            * This configuration is used when the AuthServer is running on the internal network such as docker or k8s.
+            * Configuring the redirecting URLs for internal network and the web
+            * The login and the logout URLs are configured to redirect to the AuthServer real DNS for browser.
+            * The token acquired and validated from the the internal network AuthServer URL.
+            */
+            if (configuration.GetValue<bool>("AuthServer:IsContainerized"))
+            {
+                context.Services.Configure<OpenIdConnectOptions>("oidc", options =>
+                {
+                    options.TokenValidationParameters.ValidIssuers = new[]
+                    {
+                        configuration["AuthServer:MetaAddress"]!.EnsureEndsWith('/'),
+                        configuration["AuthServer:Authority"]!.EnsureEndsWith('/')
+                    };
+
+                    options.MetadataAddress = configuration["AuthServer:MetaAddress"]!.EnsureEndsWith('/') +
+                                            ".well-known/openid-configuration";
+
+                    var previousOnRedirectToIdentityProvider = options.Events.OnRedirectToIdentityProvider;
+                    options.Events.OnRedirectToIdentityProvider = async ctx =>
+                    {
+                        // Intercept the redirection so the browser navigates to the right URL in your host
+                        ctx.ProtocolMessage.IssuerAddress = configuration["AuthServer:Authority"]!.EnsureEndsWith('/') + "connect/authorize";
+
+                        if (previousOnRedirectToIdentityProvider != null)
+                        {
+                            await previousOnRedirectToIdentityProvider(ctx);
+                        }
+                    };
+                    var previousOnRedirectToIdentityProviderForSignOut = options.Events.OnRedirectToIdentityProviderForSignOut;
+                    options.Events.OnRedirectToIdentityProviderForSignOut = async ctx =>
+                    {
+                        // Intercept the redirection for signout so the browser navigates to the right URL in your host
+                        ctx.ProtocolMessage.IssuerAddress = configuration["AuthServer:Authority"]!.EnsureEndsWith('/') + "connect/logout";
+
+                        if (previousOnRedirectToIdentityProviderForSignOut != null)
+                        {
+                            await previousOnRedirectToIdentityProviderForSignOut(ctx);
+                        }
+                    };
+                });
+            }
+
+        context.Services.Configure<AbpClaimsPrincipalFactoryOptions>(options =>
+        {
+            options.IsDynamicClaimsEnabled = true;
+        });
     }
 
     private void ConfigureVirtualFileSystem(IWebHostEnvironment hostingEnvironment)
@@ -263,7 +315,7 @@ public class MyProjectNameBlazorModule : AbpModule
         var dataProtectionBuilder = context.Services.AddDataProtection().SetApplicationName("MyProjectName");
         if (!hostingEnvironment.IsDevelopment())
         {
-            var redis = ConnectionMultiplexer.Connect(configuration["Redis:Configuration"]);
+            var redis = ConnectionMultiplexer.Connect(configuration["Redis:Configuration"]!);
             dataProtectionBuilder.PersistKeysToStackExchangeRedis(redis, "MyProjectName-Protection-Keys");
         }
     }
@@ -274,8 +326,7 @@ public class MyProjectNameBlazorModule : AbpModule
     {
         context.Services.AddSingleton<IDistributedLockProvider>(sp =>
         {
-            var connection = ConnectionMultiplexer
-                .Connect(configuration["Redis:Configuration"]);
+            var connection = ConnectionMultiplexer.Connect(configuration["Redis:Configuration"]!);
             return new RedisDistributedSynchronizationProvider(connection.GetDatabase());
         });
     }
@@ -306,7 +357,7 @@ public class MyProjectNameBlazorModule : AbpModule
         {
             app.UseMultiTenancy();
         }
-
+        app.UseDynamicClaims();
         app.UseAuthorization();
         app.UseSwagger();
         app.UseAbpSwaggerUI(options =>

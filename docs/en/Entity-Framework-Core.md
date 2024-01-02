@@ -7,24 +7,11 @@ This document explains how to integrate EF Core as an ORM provider to ABP based 
 `Volo.Abp.EntityFrameworkCore` is the main NuGet package for the EF Core integration. Install it to your project (for a layered application, to your data/infrastructure layer):
 
 ```` shell
-Install-Package Volo.Abp.EntityFrameworkCore
+abp add-package Volo.Abp.EntityFrameworkCore
 ````
 
-Then add `AbpEntityFrameworkCoreModule` module dependency (`DependsOn` attribute) to your [module](Module-Development-Basics.md):
-
-````c#
-using Volo.Abp.EntityFrameworkCore;
-using Volo.Abp.Modularity;
-
-namespace MyCompany.MyProject
-{
-    [DependsOn(typeof(AbpEntityFrameworkCoreModule))]
-    public class MyModule : AbpModule
-    {
-        //...
-    }
-}
-````
+> If you haven't done it yet, you first need to install the [ABP CLI](CLI.md). For other installation options, see [the package description page](https://abp.io/package-detail/Volo.Abp.EntityFrameworkCore).
+>
 
 > Note: Instead, you can directly download a [startup template](https://abp.io/Templates) with EF Core pre-installed.
 
@@ -606,6 +593,18 @@ Whenever you access to a property/collection, EF Core automatically performs an 
 > Lazy loading should be carefully used since it may cause performance problems in some specific cases.
 
 See also [lazy loading document](https://docs.microsoft.com/en-us/ef/core/querying/related-data/lazy) of the EF Core.
+
+## Read-Only Repositories
+
+ABP Framework provides read-only [repository](Repositories.md) interfaces (`IReadOnlyRepository<...>` or `IReadOnlyBasicRepository<...>`) to explicitly indicate that your purpose is to query data, but not change it. If so, you can inject these interfaces into your services.
+
+Entity Framework Core read-only repository implementation uses [EF Core's No-Tracking feature](https://learn.microsoft.com/en-us/ef/core/querying/tracking#no-tracking-queries). That means the entities returned from the repository will not be tracked by the EF Core [change tracker](https://learn.microsoft.com/en-us/ef/core/change-tracking/), because it is expected that you won't update entities queried from a read-only repository. If you need to track the entities, you can still use the [AsTracking()](https://learn.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.entityframeworkqueryableextensions.astracking) extension method on the LINQ expression, or `EnableTracking()` extension method on the repository object (See *Enabling / Disabling the Change Tracking* section in this document).
+
+> This behavior works only if the repository object is injected with one of the read-only repository interfaces (`IReadOnlyRepository<...>` or `IReadOnlyBasicRepository<...>`). It won't work if you have injected a standard repository (e.g. `IRepository<...>`) then casted it to a read-only repository interface.
+
+## Enabling / Disabling the Change Tracking
+
+In addition to the read-only repositories, ABP allows to manually control the change tracking behavior for querying objects. Please see the *Enabling / Disabling the Change Tracking* section of the [Repositories documentation](Repositories.md) to learn how to use it.
 
 ## Access to the EF Core API
 

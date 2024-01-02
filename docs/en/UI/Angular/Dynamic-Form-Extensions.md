@@ -23,9 +23,9 @@ The following code prepares two constants named `identityCreateFormPropContribut
 import {
   eIdentityComponents,
   IdentityCreateFormPropContributors,
-  IdentityUserDto,
 } from '@abp/ng.identity';
-import { ePropType, FormProp, FormPropList } from '@abp/ng.theme.shared/extensions';
+import { IdentityUserDto } from '@abp/ng.identity/proxy';
+import { ePropType, FormProp, FormPropList } from '@abp/ng.components/extensible';
 import { Validators } from '@angular/forms';
 
 const birthdayProp = new FormProp<IdentityUserDto>({
@@ -248,7 +248,7 @@ import {
   EXTENSIBLE_FORM_VIEW_PROVIDER,
   EXTENSIONS_FORM_PROP,
   EXTENSIONS_FORM_PROP_DATA,
-} from '@abp/ng.theme.shared/extensions';
+} from '@abp/ng.components/extensible';
 
 
 @Component({

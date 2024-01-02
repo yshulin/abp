@@ -1,12 +1,12 @@
 # Dependency Injection
 
-ABP's Dependency Injection system is developed based on Microsoft's [dependency injection extension](https://medium.com/volosoft/asp-net-core-dependency-injection-best-practices-tips-tricks-c6e9c67f9d96) library (Microsoft.Extensions.DependencyInjection nuget package). So, it's documentation is valid in ABP too.
+ABP's Dependency Injection system is developed based on Microsoft's [dependency injection extension](https://medium.com/volosoft/asp-net-core-dependency-injection-best-practices-tips-tricks-c6e9c67f9d96) library (Microsoft.Extensions.DependencyInjection nuget package). So, its documentation is valid in ABP too.
 
 > While ABP has no core dependency to any 3rd-party DI provider. However, it's required to use a provider that supports dynamic proxying and some other advanced features to make some ABP features properly work. Startup templates come with [Autofac](https://autofac.org/) installed. See [Autofac integration](Autofac-Integration.md) document for more information.
 
 ## Modularity
 
-Since ABP is a modular framework, every module defines it's own services and registers via dependency injection in it's own separate [module class](Module-Development-Basics.md). Example:
+Since ABP is a modular framework, every module defines its own services and registers via dependency injection in its own separate [module class](Module-Development-Basics.md). Example:
 
 ````C#
 public class BlogModule : AbpModule
@@ -210,7 +210,7 @@ public class TaxAppService : ApplicationService
 }
 ````
 
-``TaxAppService`` gets ``ITaxCalculator`` in it's constructor. The dependency injection system automatically provides the requested service at runtime.
+``TaxAppService`` gets ``ITaxCalculator`` in its constructor. The dependency injection system automatically provides the requested service at runtime.
 
 Constructor injection is preffered way of injecting dependencies to a class. In that way, the class can not be constructed unless all constructor-injected dependencies are provided. Thus, the class explicitly declares it's required services.
 
@@ -267,6 +267,21 @@ public class MyService : ITransientDependency
     [DisablePropertyInjection]
     public ITaxCalculator TaxCalculator { get; set; }
 }
+````
+
+#### IInjectPropertiesService
+
+You can use the `IInjectPropertiesService` service to inject properties of an object. Generally, it is a service outside of DI, such as manually created services.
+
+````C#
+var injectPropertiesService = serviceProvider.GetRequiredService<IInjectPropertiesService>();
+var instance = new TestService();
+
+// Set any properties on instance that can be resolved by IServiceProvider.
+injectPropertiesService.InjectProperties(instance);
+
+// Set any null-valued properties on instance that can be resolved by the IServiceProvider.
+injectPropertiesService.InjectUnsetProperties(instance);
 ````
 
 ### Resolve Service from IServiceProvider
@@ -479,6 +494,24 @@ public class AppModule : AbpModule
 This example simply checks if the service class has `MyLogAttribute` attribute and adds `MyLogInterceptor` to the interceptor list if so.
 
 > Notice that `OnRegistered` callback might be called multiple times for the same service class if it exposes more than one service/interface. So, it's safe to use `Interceptors.TryAdd` method instead of `Interceptors.Add` method. See [the documentation](Dynamic-Proxying-Interceptors.md) of dynamic proxying / interceptors.
+
+### IServiceCollection.OnActivated Event
+
+The `OnActivated` event is raised once a service is fully constructed. Here you can perform application-level tasks that depend on the service being fully constructed - these should be rare.
+
+````csharp
+var serviceDescriptor = ServiceDescriptor.Transient<MyServer, MyServer>();
+services.Add(serviceDescriptor);
+if (setIsReadOnly)
+{
+    services.OnActivated(serviceDescriptor, x =>
+    {
+        x.Instance.As<MyServer>().IsReadOnly = true;
+    });
+}
+````
+
+> Notice that `OnActivated` event can be registered multiple times for the same `ServiceDescriptor`.
 
 ## 3rd-Party Providers
 

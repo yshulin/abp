@@ -7,6 +7,7 @@ using Volo.Abp.Caching;
 using Volo.Abp.Data;
 using Volo.Abp.Features;
 using Volo.Abp.GlobalFeatures;
+using Volo.Abp.ObjectExtending;
 using Volo.CmsKit.Features;
 using Volo.CmsKit.GlobalFeatures;
 using Volo.CmsKit.Pages;
@@ -62,8 +63,10 @@ public class PageAdminAppService : CmsKitAdminAppServiceBase, IPageAdminAppServi
     public virtual async Task<PageDto> CreateAsync(CreatePageInputDto input)
     {
         var page = await PageManager.CreateAsync(input.Title, input.Slug, input.Content, input.Script, input.Style);
-
+        input.MapExtraPropertiesTo(page);
         await PageRepository.InsertAsync(page);
+
+        await PageCache.RemoveAsync(PageCacheItem.GetKey(page.Slug));
 
         return ObjectMapper.Map<Page, PageDto>(page);
     }
@@ -76,6 +79,8 @@ public class PageAdminAppService : CmsKitAdminAppServiceBase, IPageAdminAppServi
         {
             await InvalidateDefaultHomePageCacheAsync(considerUow: true);
         }
+        
+        await PageCache.RemoveAsync(PageCacheItem.GetKey(page.Slug));
 
         await PageManager.SetSlugAsync(page, input.Slug);
 
@@ -84,6 +89,7 @@ public class PageAdminAppService : CmsKitAdminAppServiceBase, IPageAdminAppServi
         page.SetScript(input.Script);
         page.SetStyle(input.Style);
         page.SetConcurrencyStampIfNotNull(input.ConcurrencyStamp);
+        input.MapExtraPropertiesTo(page);
 
         await PageRepository.UpdateAsync(page);
 
@@ -100,6 +106,7 @@ public class PageAdminAppService : CmsKitAdminAppServiceBase, IPageAdminAppServi
         }
         
         await PageRepository.DeleteAsync(page);
+        await PageCache.RemoveAsync(PageCacheItem.GetKey(page.Slug));
     }
 
     [Authorize(CmsKitAdminPermissions.Pages.SetAsHomePage)]
@@ -113,6 +120,6 @@ public class PageAdminAppService : CmsKitAdminAppServiceBase, IPageAdminAppServi
 
     protected virtual async Task InvalidateDefaultHomePageCacheAsync(bool considerUow = false)
     {
-        await PageCache.RemoveAsync(PageConsts.DefaultHomePageCacheKey, considerUow: considerUow);
+        await PageCache.RemoveAsync(PageCacheItem.GetKey(PageConsts.DefaultHomePageCacheKey), considerUow: considerUow);
     }
 }

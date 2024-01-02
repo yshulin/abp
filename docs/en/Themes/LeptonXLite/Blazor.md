@@ -18,7 +18,7 @@ LeptonX Lite has implementation for the ABP Framework Blazor WebAssembly & Blazo
 This theme is **already installed** when you create a new solution using the startup templates. If you are using any other template, you can install this theme by following the steps below:
 
 {{if UI == "Blazor"}}
-- Complete the [MVC Razor Pages Installation](AspNetCore.md#installation) for the **HttpApi.Host** application first. _If the solution is tiered/micro-service, complete the MVC steps for all MVC applications such as **HttpApi.Host** and if identity server is separated, install to the **OpenIddict**_.
+- Complete the [MVC Razor Pages Installation](AspNetCore.md#installation) for the **HttpApi.Host** application first. _If the solution is tiered/micro-service, complete the MVC steps for all MVC applications such as **HttpApi.Host** and if Auth Server is separated, install to the **OpenIddict**_.
 
 
 - Add **Volo.Abp.AspNetCore.Components.WebAssembly.LeptonXLiteTheme** package to your **Blazor WebAssembly** application with the following command:
@@ -135,13 +135,17 @@ builder.RootComponents.Add<App>("#ApplicationContainer");
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Main Layout";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyMainLayout.razor.cs`, in your blazor application as shown below:
 
 ```csharp	
 [ExposeServices(typeof(MainLayout))]
-[Dependency(ReplaceServices = true)
+[Dependency(ReplaceServices = true)]
 namespace LeptonXLite.DemoApp.Blazor.MyComponents
 {
     public partial class MyMainLayout
@@ -152,8 +156,10 @@ namespace LeptonXLite.DemoApp.Blazor.MyComponents
 ```	
 
 > Don't forget to remove the repeated attributes from the razor page!
+> Don't forget to remove the `@code` section from the razor page!
 
 ### Toolbars
+
 LeptonX Lite includes separeted toolbars for desktop & mobile. You can manage toolbars independently. Toolbar names can be accessible in the **LeptonXLiteToolbars** class.
 
 - `LeptonXLiteToolbars.Main`
@@ -188,9 +194,9 @@ LeptonX Blazor is built on the basis of components. You can use the components i
 
 ### Branding Component
 
-The **brand component** is a simple component that can be used to display your brand. It contains a **logo** and a **company name**.
+The **branding component** is a simple component that can be used to display your brand. It contains a **logo** and a **company name**.
 
-<img src="../../images/leptonxlite-brand-component.png">
+![](../../images/leptonxlite-brand-component.png)
 
 #### How to Override Branding Component
 
@@ -205,6 +211,10 @@ The **brand component** is a simple component that can be used to display your b
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Branding Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyBrandingComponent.razor.cs`, in your blazor application as shown below:
@@ -219,11 +229,15 @@ namespace LeptonXLite.DemoApp.Blazor.MyComponents
 }
 ```	
 
+### How to override the favicon
+
+Startup templates contain `favicon.ico` files under the `wwwroot` folder of the Blazor application. You can change this file to override the current favicon. 
+
 ### Breadcrumb Component
 
 On websites that have a lot of pages, **breadcrumb navigation** can greatly **enhance the way users find their way** around. In terms of **usability**, breadcrumbs reduce the number of actions a website **visitor** needs to take in order to get to a **higher-level page**, and they **improve** the **findability** of **website sections** and **pages**.
 
-<img src="../../images/leptonxlite-breadcrumb-component.png">
+![](../../images/leptonxlite-breadcrumb-component.png)
 
 #### How to Override the BreadCrumb Component
 
@@ -238,9 +252,14 @@ On websites that have a lot of pages, **breadcrumb navigation** can greatly **en
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Breadcrumbs Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyBreadcrumbsComponent.razor.cs`, in your blazor application as shown below:
+* 
 ```csharp	
 using Volo.Abp.AspNetCore.Components.Web.LeptonXLiteTheme.Themes.LeptonXLite;
 using Volo.Abp.DependencyInjection;
@@ -260,7 +279,7 @@ namespace LeptonXLite.DemoApp.Blazor.MyComponents
 
 Sidebar menus have been used as **a directory for Related Pages** for a **Service** offering, **Navigation** items for a **specific service** or topic and even just as **Links** the user may be interested in.
 
-<img src="../../images/leptonxlite-sidebar-menu-component.png">
+![](../../images/leptonxlite-sidebar-menu-component.png)
 
 #### How to Override the Main Menu Component
 
@@ -275,9 +294,14 @@ Sidebar menus have been used as **a directory for Related Pages** for a **Servic
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Main Menu Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyMainMenu.razor.cs`, in your blazor application as shown below:
+
 ```csharp	
 using Volo.Abp.AspNetCore.Components.Web.LeptonXLiteTheme.Themes.LeptonXLite.Navigation;
 using Volo.Abp.DependencyInjection;
@@ -312,9 +336,14 @@ Toolbar items are used to add **extra functionality to the toolbar**. The toolba
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Toolbar Items Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyToolbarItemsComponent.razor.cs`, in your blazor application as shown below:
+
 ```csharp	
 using Volo.Abp.AspNetCore.Components.Web.LeptonXLiteTheme.Themes.LeptonXLite;
 using Volo.Abp.DependencyInjection;
@@ -334,7 +363,7 @@ namespace LeptonXLite.DemoApp.Blazor.MyComponents
 
 Think about a **multi-lingual** website and the first thing that could **hit your mind** is **the language switch component**. A **navigation bar** is a **great place** to **embed a language switch**. By embedding the language switch in the navigation bar of your website, you would **make it simpler** for users to **find it** and **easily** switch the **language**  <u>**without trying to locate it across the website.**</u>
 
-<img src="../../images/leptonxlite-language-switch-component.png">
+![](../../images/leptonxlite-language-switch-component.png)
 
 #### How to Override the Language Switch Component
 
@@ -349,9 +378,14 @@ Think about a **multi-lingual** website and the first thing that could **hit you
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Language Switch Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyLanguageSwitchComponent.razor.cs`, in your blazor application as shown below:
+
 ```csharp	
 using Volo.Abp.AspNetCore.Components.Web.LeptonXLiteTheme.Themes.LeptonXLite.Toolbar;
 using Volo.Abp.DependencyInjection;
@@ -371,7 +405,7 @@ namespace LeptonXLite.DemoApp.Blazor.MyComponents
 
 The **mobile** **language switch component** is used to switch the language of the website **on mobile devices**. The mobile language switch component is a **dropdown menu** that **contains all the languages** of the website.
 
-<img src="../../images/leptonxlite-mobile-language-switch-component.png">
+![](../../images/leptonxlite-mobile-language-switch-component.png)
 
 #### How to Override the Mobile Language Switch Component
 
@@ -386,9 +420,14 @@ The **mobile** **language switch component** is used to switch the language of t
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Mobile Language Switch Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyMobilLanguageSwitchComponent.razor.cs`, in your blazor application as shown below:
+
 ```csharp	
 using Volo.Abp.AspNetCore.Components.Web.LeptonXLiteTheme.Themes.LeptonXLite.Toolbar;
 using Volo.Abp.DependencyInjection;
@@ -408,7 +447,7 @@ namespace LeptonXLite.DemoApp.Blazor.MyComponents
 
 The **User Menu** is the **menu** that **drops down** when you **click your name** or **profile picture** in the **upper right corner** of your page (**in the toolbar**). It drops down options such as **Settings**, **Logout**, etc.
 
-<img src="../../images/leptonxlite-user-menu-component.png">
+![](../../images/leptonxlite-user-menu-component.png)
 
 #### How to Override the User Menu Component
 
@@ -423,9 +462,14 @@ The **User Menu** is the **menu** that **drops down** when you **click your name
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My User Menu Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyUserMenuComponent.razor.cs`, in your blazor application as shown below:
+
 ```csharp	
 using Volo.Abp.AspNetCore.Components.Server.LeptonXLiteTheme.Themes.LeptonXLite.Toolbar;
 using Volo.Abp.DependencyInjection;
@@ -445,7 +489,7 @@ namespace LeptonXLite.DemoApp.Blazor.MyComponents
 
 The **mobile user menu component** is used to display the **user menu on mobile devices**. The mobile user menu component is a **dropdown menu** that contains all the **options** of the **user menu**.
 
-<img src="../../images/leptonxlite-mobile-user-menu-component.png">
+![](../../images/leptonxlite-mobile-user-menu-component.png)
 
 #### How to override the Mobile User Menu Component
 
@@ -460,9 +504,14 @@ The **mobile user menu component** is used to display the **user menu on mobile 
 @attribute [Dependency(ReplaceServices = true)]
 
 @Name
+
+@code {
+    string Name = "My Mobile User Menu Component";
+}
 ``` 
 
 * If you prefer to use a code-behind file for the C# code of your component, create a razor component, like `MyMobileUserMenuComponent.razor.cs`, in your blazor application as shown below:
+
 ```csharp	
 using Volo.Abp.AspNetCore.Components.Server.LeptonXLiteTheme.Themes.LeptonXLite.Toolbar;
 using Volo.Abp.DependencyInjection;

@@ -8,7 +8,7 @@ import {
   Output,
   Self,
 } from '@angular/core';
-import { UntypedFormControl, UntypedFormGroup, FormGroupDirective } from '@angular/forms';
+import { FormGroupDirective, UntypedFormControl, UntypedFormGroup } from '@angular/forms';
 import { fromEvent } from 'rxjs';
 import { debounceTime, filter } from 'rxjs/operators';
 import { SubscriptionService } from '../services/subscription.service';
@@ -18,7 +18,7 @@ type Controls = { [key: string]: UntypedFormControl } | UntypedFormGroup[];
  * @deprecated FormSubmitDirective will be removed in V7.0.0. Use `ngSubmit` instead.
  */
 @Directive({
-  // eslint-disable-next-line @angular-eslint/directive-selector
+  standalone: true,
   selector: 'form[ngSubmit][formGroup]',
   providers: [SubscriptionService],
 })
@@ -26,8 +26,9 @@ export class FormSubmitDirective implements OnInit {
   @Input()
   debounce = 200;
 
+  // TODO: Remove unused input
   @Input()
-  notValidateOnSubmit: string | boolean;
+  notValidateOnSubmit?: string | boolean;
 
   @Input()
   markAsDirtyWhenSubmit = true;
@@ -41,11 +42,10 @@ export class FormSubmitDirective implements OnInit {
     private host: ElementRef<HTMLFormElement>,
     private cdRef: ChangeDetectorRef,
     private subscription: SubscriptionService,
-  ) { }
+  ) {}
 
   ngOnInit() {
     this.subscription.addOne(this.formGroupDirective.ngSubmit, () => {
-
       if (this.markAsDirtyWhenSubmit) {
         this.markAsDirty();
       }
@@ -53,10 +53,10 @@ export class FormSubmitDirective implements OnInit {
       this.executedNgSubmit = true;
     });
 
-    const keyup$ = fromEvent(this.host.nativeElement as HTMLElement, 'keyup').pipe(
+    const keyup$ = fromEvent<KeyboardEvent>(this.host.nativeElement as HTMLElement, 'keyup').pipe(
       debounceTime(this.debounce),
       filter(event => !(event.target instanceof HTMLTextAreaElement)),
-      filter((event: KeyboardEvent) => event && event.key === 'Enter'),
+      filter(event => event && event.key === 'Enter'),
     );
 
     this.subscription.addOne(keyup$, () => {

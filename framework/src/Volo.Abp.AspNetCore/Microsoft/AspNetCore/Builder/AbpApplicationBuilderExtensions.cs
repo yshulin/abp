@@ -82,7 +82,7 @@ public static class AbpApplicationBuilderExtensions
     }
 
     public static IApplicationBuilder UseAbpRequestLocalization(this IApplicationBuilder app,
-        Action<RequestLocalizationOptions> optionsAction = null)
+        Action<RequestLocalizationOptions>? optionsAction = null)
     {
         app.ApplicationServices
             .GetRequiredService<IAbpRequestLocalizationOptionsProvider>()
@@ -110,5 +110,10 @@ public static class AbpApplicationBuilderExtensions
     public static IApplicationBuilder UseAbpSecurityHeaders(this IApplicationBuilder app)
     {
         return app.UseMiddleware<AbpSecurityHeadersMiddleware>();
+    }
+
+    public static IApplicationBuilder UseDynamicClaims(this IApplicationBuilder app)
+    {
+        return app.UseMiddleware<AbpDynamicClaimsMiddleware>();
     }
 }

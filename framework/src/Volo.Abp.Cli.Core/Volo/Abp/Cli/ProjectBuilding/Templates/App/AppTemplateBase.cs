@@ -28,7 +28,7 @@ public abstract class AppTemplateBase : TemplateInfo
 
     public override IEnumerable<ProjectBuildPipelineStep> GetCustomSteps(ProjectBuildContext context)
     {
-        var steps = new List<ProjectBuildPipelineStep>();
+        var steps = base.GetCustomSteps(context).ToList();
 
         ConfigureTenantSchema(context, steps);
         SwitchDatabaseProvider(context, steps);
@@ -41,6 +41,7 @@ public abstract class AppTemplateBase : TemplateInfo
         RemoveUnnecessaryPorts(context, steps);
         RandomizeSslPorts(context, steps);
         RandomizeStringEncryption(context, steps);
+        RandomizeAuthServerPassPhrase(context, steps);
         UpdateNuGetConfig(context, steps);
         ConfigureDockerFiles(context, steps);
         ChangeConnectionString(context, steps);
@@ -101,11 +102,11 @@ public abstract class AppTemplateBase : TemplateInfo
         else
         {
             context.Symbols.Add("EFCORE");
+            SetDbmsSymbols(context);
         }
 
         if (context.BuildArgs.DatabaseProvider != DatabaseProvider.MongoDb)
         {
-            steps.Add(new AppTemplateRemoveMongodbCollectionFixtureStep());
             steps.Add(new RemoveProjectFromSolutionStep("MyCompanyName.MyProjectName.MongoDB"));
             steps.Add(new RemoveProjectFromSolutionStep("MyCompanyName.MyProjectName.MongoDB.Tests", projectFolderPath: "/aspnet-core/test/MyCompanyName.MyProjectName.MongoDB.Tests"));
         }
@@ -164,7 +165,11 @@ public abstract class AppTemplateBase : TemplateInfo
             steps.Add(new RemoveFolderStep("/angular"));
         }
 
-        if (context.BuildArgs.MobileApp != MobileApp.ReactNative)
+        if(context.BuildArgs.MobileApp == MobileApp.ReactNative)
+        {
+            context.Symbols.Add("mobile:react-native");
+        }
+        else
         {
             steps.Add(new RemoveFolderStep(MobileApp.ReactNative.GetFolderName().EnsureStartsWith('/')));
         }
@@ -173,6 +178,7 @@ public abstract class AppTemplateBase : TemplateInfo
         {
             steps.Add(new MauiChangeApplicationIdGuidStep());
             steps.Add(new MauiChangePortStep());
+            context.Symbols.Add("mobile:maui");
         }
         else
         {
@@ -186,13 +192,17 @@ public abstract class AppTemplateBase : TemplateInfo
         }
         else
         {
-            if (context.BuildArgs.ExtraProperties.ContainsKey(NewCommand.Options.Tiered.Long) || context.BuildArgs.ExtraProperties.ContainsKey("separate-identity-server"))
+            if (context.BuildArgs.ExtraProperties.ContainsKey(NewCommand.Options.Tiered.Long) ||
+                context.BuildArgs.ExtraProperties.ContainsKey("separate-identity-server") ||
+                context.BuildArgs.ExtraProperties.ContainsKey("separate-auth-server"))
             {
                 steps.Add(new RemoveProjectFromSolutionStep("MyCompanyName.MyProjectName.Web.Public"));
+                context.Symbols.Add("ui:mvc-public-host");
             }
             else
             {
                 steps.Add(new RemoveProjectFromSolutionStep("MyCompanyName.MyProjectName.Web.Public.Host"));
+                context.Symbols.Add("ui:mvc-public");
             }
         }
     }
@@ -225,6 +235,36 @@ public abstract class AppTemplateBase : TemplateInfo
         RemoveLeptonXThemePackagesFromPackageJsonFiles(steps, isProTemplate: IsPro(), uiFramework: context.BuildArgs.UiFramework);
     }
 
+    protected void SetDbmsSymbols(ProjectBuildContext context)
+    {
+        switch (context.BuildArgs.DatabaseManagementSystem)
+        {
+            case DatabaseManagementSystem.NotSpecified:
+                context.Symbols.Add("SqlServer");
+                break;
+            case DatabaseManagementSystem.SQLServer:
+                context.Symbols.Add("SqlServer");
+                break;
+            case DatabaseManagementSystem.MySQL:
+                context.Symbols.Add("MySql");
+                break;
+            case DatabaseManagementSystem.PostgreSQL:
+                context.Symbols.Add("PostgreSql");
+                break;
+            case DatabaseManagementSystem.Oracle:
+                context.Symbols.Add("Oracle");
+                break;
+            case DatabaseManagementSystem.OracleDevart:
+                context.Symbols.Add("Oracle");
+                break;
+            case DatabaseManagementSystem.SQLite:
+                context.Symbols.Add("SqLite");
+                break;
+            default:
+                throw new AbpException("Unknown Dbms: " + context.BuildArgs.DatabaseManagementSystem);
+        }
+    }
+    
     private void RemoveThemeLogoFolders(ProjectBuildContext context, List<ProjectBuildPipelineStep> steps)
     {
         if (context.BuildArgs.Theme != Theme.Lepton && IsPro())
@@ -240,12 +280,10 @@ public abstract class AppTemplateBase : TemplateInfo
 
     private static bool IsDefaultThemeForTemplate(ProjectBuildArgs args)
     {
-        var templateThemes = new Dictionary<string, Theme> 
+        var templateThemes = new Dictionary<string, Theme>
         {
             { AppTemplate.TemplateName, AppTemplate.DefaultTheme },
-            { AppProTemplate.TemplateName, AppProTemplate.DefaultTheme },
-            { AppNoLayersTemplate.TemplateName, AppNoLayersTemplate.DefaultTheme },
-            { AppNoLayersProTemplate.TemplateName, AppNoLayersProTemplate.DefaultTheme }
+            { AppProTemplate.TemplateName, AppProTemplate.DefaultTheme }
         };
 
         return templateThemes.TryGetValue(args.TemplateName!, out var templateTheme) && templateTheme == args.Theme;
@@ -258,12 +296,12 @@ public abstract class AppTemplateBase : TemplateInfo
         {
             "/MyCompanyName.MyProjectName.Web/package.json",
             "/MyCompanyName.MyProjectName.Web.Host/package.json",
+            "/MyCompanyName.MyProjectName.Web.Public/package.json",
+            "/MyCompanyName.MyProjectName.Web.Public.Host/package.json",
             "/MyCompanyName.MyProjectName.HttpApi.HostWithIds/package.json",
             "/MyCompanyName.MyProjectName.HttpApi.Host/package.json",
             "/MyCompanyName.MyProjectName.AuthServer/package.json",
-            "/MyCompanyName.MyProjectName/package.json",
-            "/MyCompanyName.MyProjectName.Host/package.json",
-            "/MyCompanyName.MyProjectName.Host.Mongo/package.json"
+            "/MyCompanyName.MyProjectName/package.json"
         };
 
         foreach (var packageJsonFilePath in packageJsonFilePaths)
@@ -277,8 +315,7 @@ public abstract class AppTemplateBase : TemplateInfo
             var blazorServerPackageJsonFilePaths = new List<string>
             {
                 "/MyCompanyName.MyProjectName.Blazor/package.json",
-                "/MyCompanyName.MyProjectName.Blazor.Server.Tiered/package.json",
-                "/MyCompanyName.MyProjectName.Blazor.Server.Mongo/package.json"
+                "/MyCompanyName.MyProjectName.Blazor.Server.Tiered/package.json"
             };
 
             foreach (var blazorServerPackageJsonFilePath in blazorServerPackageJsonFilePaths)
@@ -608,6 +645,11 @@ public abstract class AppTemplateBase : TemplateInfo
         steps.Add(new RandomizeStringEncryptionStep());
     }
 
+    protected static void RandomizeAuthServerPassPhrase(ProjectBuildContext context, List<ProjectBuildPipelineStep> steps)
+    {
+        steps.Add(new RandomizeAuthServerPassPhraseStep());
+    }
+
     protected void UpdateNuGetConfig(ProjectBuildContext context, List<ProjectBuildPipelineStep> steps)
     {
         steps.Add(new UpdateNuGetConfigStep("/aspnet-core/NuGet.Config"));
@@ -636,6 +678,11 @@ public abstract class AppTemplateBase : TemplateInfo
         if (context.BuildArgs.ConnectionString != null)
         {
             steps.Add(new ConnectionStringChangeStep());
+        }
+
+        if (IsPro())
+        {
+            steps.Add(new ConnectionStringRenameStep());
         }
     }
 

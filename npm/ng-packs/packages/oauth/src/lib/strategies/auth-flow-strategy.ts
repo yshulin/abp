@@ -1,23 +1,29 @@
 import { Injector } from '@angular/core';
-import { Params } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Params, Router } from '@angular/router';
+
+import { Observable, of } from 'rxjs';
+import { filter, map, switchMap, take, tap } from 'rxjs/operators';
 import {
   AuthConfig,
   OAuthErrorEvent,
   OAuthService as OAuthService2,
   OAuthStorage,
 } from 'angular-oauth2-oidc';
-import { Observable, of } from 'rxjs';
-import { filter, switchMap, tap } from 'rxjs/operators';
+
 import {
-  LoginParams,
+  AbpLocalStorageService,
   ConfigStateService,
   EnvironmentService,
   HttpErrorReporterService,
+  LoginParams,
   SessionStateService,
   TENANT_KEY,
 } from '@abp/ng.core';
+
 import { clearOAuthStorage } from '../utils/clear-o-auth-storage';
 import { oAuthStorage } from '../utils/oauth-storage';
+import { OAuthErrorFilterService } from '../services';
 
 export abstract class AuthFlowStrategy {
   abstract readonly isInternalAuth: boolean;
@@ -26,19 +32,20 @@ export abstract class AuthFlowStrategy {
   protected environment: EnvironmentService;
   protected configState: ConfigStateService;
   protected oAuthService: OAuthService2;
-  protected oAuthConfig: AuthConfig;
+  protected oAuthConfig!: AuthConfig;
   protected sessionState: SessionStateService;
+  protected localStorageService: AbpLocalStorageService;
   protected tenantKey: string;
+  protected router: Router;
+
+  protected readonly oAuthErrorFilterService: OAuthErrorFilterService;
 
   abstract checkIfInternalAuth(queryParams?: Params): boolean;
-
   abstract navigateToLogin(queryParams?: Params): void;
-
   abstract logout(queryParams?: Params): Observable<any>;
-
   abstract login(params?: LoginParams | Params): Observable<any>;
 
-  private catchError = err => {
+  private catchError = (err: HttpErrorResponse) => {
     this.httpErrorReporter.reportError(err);
     return of(null);
   };
@@ -49,24 +56,28 @@ export abstract class AuthFlowStrategy {
     this.configState = injector.get(ConfigStateService);
     this.oAuthService = injector.get(OAuthService2);
     this.sessionState = injector.get(SessionStateService);
-    this.oAuthConfig = this.environment.getEnvironment().oAuthConfig;
+    this.localStorageService = injector.get(AbpLocalStorageService);
+    this.oAuthConfig = this.environment.getEnvironment().oAuthConfig || {};
     this.tenantKey = injector.get(TENANT_KEY);
+    this.router = injector.get(Router);
+    this.oAuthErrorFilterService = injector.get(OAuthErrorFilterService);
 
     this.listenToOauthErrors();
   }
 
   async init(): Promise<any> {
-    const shouldClear = shouldStorageClear(
-      this.environment.getEnvironment().oAuthConfig.clientId,
-      oAuthStorage,
-    );
-    if (shouldClear) clearOAuthStorage(oAuthStorage);
+    if (this.oAuthConfig.clientId) {
+      const shouldClear = shouldStorageClear(this.oAuthConfig.clientId, oAuthStorage);
+      if (shouldClear) clearOAuthStorage(oAuthStorage);
+    }
 
     this.oAuthService.configure(this.oAuthConfig);
 
     this.oAuthService.events
       .pipe(filter(event => event.type === 'token_refresh_error'))
       .subscribe(() => this.navigateToLogin());
+
+    this.navigateToPreviousUrl();
 
     return this.oAuthService
       .loadDiscoveryDocument()
@@ -80,6 +91,33 @@ export abstract class AuthFlowStrategy {
       .catch(this.catchError);
   }
 
+  protected navigateToPreviousUrl(): void {
+    const { responseType } = this.oAuthConfig;
+    if (responseType === 'code') {
+      this.oAuthService.events
+        .pipe(
+          filter(event => event.type === 'token_received' && !!this.oAuthService.state),
+          take(1),
+          map(() => {
+            const redirect_uri = decodeURIComponent(this.oAuthService.state);
+
+            if (redirect_uri && redirect_uri !== '/') {
+              return redirect_uri;
+            }
+
+            return '/';
+          }),
+          switchMap(redirectUri =>
+            this.configState.getOne$('currentUser').pipe(
+              filter(user => !!user?.isAuthenticated),
+              tap(() => this.router.navigate([redirectUri])),
+            ),
+          ),
+        )
+        .subscribe();
+    }
+  }
+
   protected refreshToken() {
     return this.oAuthService.refreshToken().catch(() => clearOAuthStorage());
   }
@@ -88,7 +126,12 @@ export abstract class AuthFlowStrategy {
     this.oAuthService.events
       .pipe(
         filter(event => event instanceof OAuthErrorEvent),
-        tap(() => clearOAuthStorage()),
+        tap((err: OAuthErrorEvent) => {
+          const shouldSkip = this.oAuthErrorFilterService.run(err);
+          if (!shouldSkip) {
+            clearOAuthStorage();
+          }
+        }),
         switchMap(() => this.configState.refreshAppState()),
       )
       .subscribe();
