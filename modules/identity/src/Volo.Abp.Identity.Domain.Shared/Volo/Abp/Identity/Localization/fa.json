@@ -5,6 +5,7 @@
     "Users": "کاربران",
     "NewUser": "کاربر جدید",
     "UserName": "نام کاربر",
+    "Surname":"نام خانوادگی",
     "EmailAddress": "آدرس ایمیل",
     "PhoneNumber": "شماره تلفن",
     "UserInformations": "اطلاعات کاربر",
@@ -26,7 +27,8 @@
     "DisplayName:PhoneNumber": "شماره تلفن",
     "DisplayName:TwoFactorEnabled": "احراز هویت دو مرحله ای",
     "DisplayName:IsActive": "فعال",
-    "DisplayName:LockoutEnabled": "قفل کردن حساب در صورت عدم موفقیت در ورود به سیستم",
+    "DisplayName:LockoutEnabled": "قفل کردن حساب",
+    "Description:LockoutEnabled": "قفل کردن حساب پس از تلاش های ناموفق برای ورود",
     "NewRole": "نقش/وظیفه جدید",
     "RoleName": "نام نقش/وظیفه",
     "CreationTime": "زمان ایجاد",
@@ -75,6 +77,7 @@
     "Volo.Abp.Identity:010007": "شما نمی توانید تنظیمات دو مرحله ای خود را تغییر دهید.",
     "Volo.Abp.Identity:010008": "تغییر دادن تنظیمات دو مرحله ای مجاز نمی باشد.",
     "Volo.Abp.Identity:010009": "شما نمی توانید خودتان را معرفی کنید.",
+    "Volo.Abp.Identity:010021": "نام {0} قبلاً استفاده گردیده است.",
     "Identity.OrganizationUnit.MaxUserMembershipCount": "حداکثر تعداد مجاز عضویت در یک واحد سازمان برای یک کاربر",
     "ThisUserIsNotActiveMessage": "این کاربر غیرفعال میباشد.",
     "Permission:IdentityManagement": "مدیریت هویت",
@@ -83,6 +86,7 @@
     "Permission:Edit": "ویرایش",
     "Permission:Delete": "حذف",
     "Permission:ChangePermissions": "تغییر مجوزها",
+    "Permission:ManageRoles": "مدیریت نقشها و وظایف",
     "Permission:UserManagement": "مدیریت کاربر",
     "Permission:UserLookup": "جستجوی کاربر",
     "DisplayName:Abp.Identity.Password.RequiredLength": "طول مورد نیاز",
@@ -116,6 +120,13 @@
     "Description:Abp.Identity.SignIn.EnablePhoneNumberConfirmation": "آیا شماره تلفن توسط کاربر قابل تایید باشد یا خیر.",
     "Description:Abp.Identity.SignIn.RequireConfippedPhoneNumber": "آیا برای ورود به سیستم شماره تلفن تأیید شده لازم است یا خیر",
     "Description:Abp.Identity.User.IsUserNameUpdateEnabled": "آیا کاربر می تواند نام کاربری را به روز کند یا خیر.",
-    "Description:Abp.Identity.User.IsEmailUpdateEnabled": "آیا کاربر می تواند آدرس ایمیل خود را به روز کند با خیر."
+    "Description:Abp.Identity.User.IsEmailUpdateEnabled": "آیا کاربر می تواند آدرس ایمیل خود را به روز کند با خیر.",
+    "Details": "جزئیات",
+    "CreatedBy": "ایجاد شده توسط",
+    "ModifiedBy": "ویرایش شده توسط",
+    "ModificationTime": "زمان اصلاح",
+    "PasswordUpdateTime": "زمان ویرایش رمز",
+    "LockoutEndTime": "زمان اتمام قفل",
+    "FailedAccessCount": "تعداد دسترسی ناموفق"
   }
 }

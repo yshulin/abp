@@ -83,6 +83,11 @@
     "EditProfile": "Edit Profile",
     "MoreFromBlog": "More From Blog",
     "MoreFromUser": "More From {0}",
-    "BlogPosts": "Posts"
+    "BlogPosts": "Posts",
+    "Views": "views",
+    "Biography": "Biography",
+    "Social": "Social",
+    "NewBlogPost" : "New Blog Post",
+    "BlogMemberMetaDescription" : "ABP Blog for .NET development, cross-platform, ASP.NET application templates, ABP-related news and more..."
   }
 }

@@ -107,10 +107,11 @@ public class NewCommand : ProjectCreationCommandBase, IConsoleCommand, ITransien
 
         await CheckCreatedRequirements(projectArgs);
 
-        ConfigureNpmPackagesForTheme(projectArgs);
         await CreateOpenIddictPfxFilesAsync(projectArgs);
         await RunGraphBuildForMicroserviceServiceTemplate(projectArgs);
         await CreateInitialMigrationsAsync(projectArgs);
+
+        await ConfigureAngularAfterMicroserviceServiceCreatedAsync(projectArgs, template);
 
         var skipInstallLibs = commandLineArgs.Options.ContainsKey(Options.SkipInstallingLibs.Long) || commandLineArgs.Options.ContainsKey(Options.SkipInstallingLibs.Short);
         if (!skipInstallLibs)
@@ -219,6 +220,7 @@ public class NewCommand : ProjectCreationCommandBase, IConsoleCommand, ITransien
         sb.AppendLine("  abp new Acme.BookStore -u angular -d mongodb");
         sb.AppendLine("  abp new Acme.BookStore -m none");
         sb.AppendLine("  abp new Acme.BookStore -m react-native");
+        sb.AppendLine("  abp new Acme.BookStore -m maui");
         sb.AppendLine("  abp new Acme.BookStore -d mongodb");
         sb.AppendLine("  abp new Acme.BookStore -d mongodb -o d:\\my-project");
         sb.AppendLine("  abp new Acme.BookStore -t module");
@@ -231,12 +233,12 @@ public class NewCommand : ProjectCreationCommandBase, IConsoleCommand, ITransien
         sb.AppendLine("  abp new Acme.BookStore --theme basic");
         sb.AppendLine("  abp new Acme.BookStore --connection-string \"Server=myServerName\\myInstanceName;Database=myDatabase;User Id=myUsername;Password=myPassword\"");
         sb.AppendLine("");
-        sb.AppendLine("See the documentation for more info: https://docs.abp.io/en/abp/latest/CLI");
+        sb.AppendLine("See the documentation for more info: https://abp.io/docs/latest/cli");
 
         return sb.ToString();
     }
 
-    public string GetShortDescription()
+    public static string GetShortDescription()
     {
         return "Generate a new solution based on the ABP startup templates.";
     }

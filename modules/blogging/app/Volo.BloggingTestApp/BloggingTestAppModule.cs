@@ -78,6 +78,7 @@ namespace Volo.BloggingTestApp
             Configure<BloggingUrlOptions>(options =>
             {
                 options.RoutePrefix = null;
+                options.SingleBlogMode.Enabled = true;
             });
 
             Configure<AbpDbConnectionOptions>(options =>
@@ -160,7 +161,7 @@ namespace Volo.BloggingTestApp
                 app.UseErrorPage();
             }
 
-            app.UseStaticFiles();
+            app.MapAbpStaticAssets();
 
             app.UseRouting();
 

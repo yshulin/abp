@@ -34,6 +34,7 @@ public class CmsKitAdminApplicationAutoMapperProfile : Profile
         CreateMap<BlogPost, BlogPostListDto>()
             .Ignore(d => d.BlogName)
             .MapExtraProperties();
+        
         CreateMap<CreateBlogPostDto, BlogPost>(MemberList.Source).MapExtraProperties();
         CreateMap<UpdateBlogPostDto, BlogPost>(MemberList.Source).MapExtraProperties();
 
@@ -46,5 +47,8 @@ public class CmsKitAdminApplicationAutoMapperProfile : Profile
         CreateMap<MediaDescriptor, MediaDescriptorDto>().MapExtraProperties();
 
         CreateMap<MenuItem, MenuItemDto>().MapExtraProperties();
+        CreateMap<MenuItem, MenuItemWithDetailsDto>()
+            .Ignore(x => x.PageTitle)
+            .MapExtraProperties();
     }
 }

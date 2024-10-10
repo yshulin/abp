@@ -1,11 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>Volo.CmsKit</RootNamespace>
     <PreserveCompilationReferences>true</PreserveCompilationReferences>
     <UserSecretsId>Volo.CmsKit-c2d31439-b723-48e2-b061-5ebd7aeb6010</UserSecretsId>
-    <DefineConstants>$(DefineConstants);MongoDB</DefineConstants>
+    <!-- Options for DB: MongoDB, EntityFrameworkCore -->
+    <DefineConstants>$(DefineConstants);MongoDB</DefineConstants> 
   </PropertyGroup>
 
   <ItemGroup>

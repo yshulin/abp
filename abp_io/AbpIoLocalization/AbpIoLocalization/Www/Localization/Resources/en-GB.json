@@ -153,6 +153,9 @@
     "AndMore": "and more...",
     "Code": "Code",
     "Result": "Result",
+    "CommercialSupport": "Commercial Suport",
+    "GithubIssues": "GitHub Issues",
+    "TechnicalSupport": "Technical Support",
     "SeeTheDocumentForMoreInformation": "See the <a href=\"{1}\">{0} document</a> for more information",
     "IndexPageHeroSection": "<span class=\"first-line shine\"><strong>open source</strong></span><span class=\"second-line text-uppercase\">Web Application<br />Framework </span><span class=\"third-line shine2\"><strong>for asp.net core</strong></span>",
     "UiFramework": "UI Framework",
@@ -271,6 +274,7 @@
     "DDDBookEmailBody": "Thank you. <br /> To download your book, <a href=\"{0}\">click here</a>.",
     "SubscribeToNewsletter": "Subscribe to the newsletter to get information about happenings in the ABP.IO Platform, like new releases, posts, offers, and more.",
     "FirstEdition": "First Edition",
-    "SelectUITheme": "Select UI Theme"
+    "SelectUITheme": "Select UI Theme",
+    "LeaveUsReview": "Leave us review"
   }
 }

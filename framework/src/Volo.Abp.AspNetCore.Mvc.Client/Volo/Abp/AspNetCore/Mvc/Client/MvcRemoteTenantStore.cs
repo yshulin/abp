@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
@@ -29,9 +30,9 @@ public class MvcRemoteTenantStore : ITenantStore, ITransientDependency
         Options = options.Value;
     }
 
-    public async Task<TenantConfiguration?> FindAsync(string name)
+    public async Task<TenantConfiguration?> FindAsync(string normalizedName)
     {
-        var cacheKey = TenantConfigurationCacheItem.CalculateCacheKey(name);
+        var cacheKey = TenantConfigurationCacheItem.CalculateCacheKey(normalizedName);
         var httpContext = HttpContextAccessor?.HttpContext;
 
         if (httpContext != null && httpContext.Items[cacheKey] is TenantConfigurationCacheItem tenantConfigurationInHttpContext)
@@ -40,9 +41,9 @@ public class MvcRemoteTenantStore : ITenantStore, ITransientDependency
         }
 
         var tenantConfiguration = await Cache.GetAsync(cacheKey);
-        if (tenantConfiguration == null)
+        if (tenantConfiguration?.Value == null)
         {
-            await TenantAppService.FindTenantByNameAsync(name);
+            var tenant = await TenantAppService.FindTenantByNameAsync(normalizedName);
             tenantConfiguration = await Cache.GetAsync(cacheKey);
         }
 
@@ -65,7 +66,7 @@ public class MvcRemoteTenantStore : ITenantStore, ITransientDependency
         }
 
         var tenantConfiguration = await Cache.GetAsync(cacheKey);
-        if (tenantConfiguration == null)
+        if (tenantConfiguration?.Value == null)
         {
             await TenantAppService.FindTenantByIdAsync(id);
             tenantConfiguration = await Cache.GetAsync(cacheKey);
@@ -79,9 +80,14 @@ public class MvcRemoteTenantStore : ITenantStore, ITransientDependency
         return tenantConfiguration?.Value;
     }
 
-    public TenantConfiguration? Find(string name)
+    public Task<IReadOnlyList<TenantConfiguration>> GetListAsync(bool includeDetails = false)
     {
-        var cacheKey = TenantConfigurationCacheItem.CalculateCacheKey(name);
+        return Task.FromResult<IReadOnlyList<TenantConfiguration>>(Array.Empty<TenantConfiguration>());
+    }
+
+    public TenantConfiguration? Find(string normalizedName)
+    {
+        var cacheKey = TenantConfigurationCacheItem.CalculateCacheKey(normalizedName);
         var httpContext = HttpContextAccessor?.HttpContext;
 
         if (httpContext != null && httpContext.Items[cacheKey] is TenantConfigurationCacheItem tenantConfigurationInHttpContext)
@@ -90,9 +96,9 @@ public class MvcRemoteTenantStore : ITenantStore, ITransientDependency
         }
 
         var tenantConfiguration = Cache.Get(cacheKey);
-        if (tenantConfiguration == null)
+        if (tenantConfiguration?.Value == null)
         {
-            AsyncHelper.RunSync(async () => await TenantAppService.FindTenantByNameAsync(name));
+            AsyncHelper.RunSync(async () => await TenantAppService.FindTenantByNameAsync(normalizedName));
             tenantConfiguration = Cache.Get(cacheKey);
         }
 
@@ -115,7 +121,7 @@ public class MvcRemoteTenantStore : ITenantStore, ITransientDependency
         }
 
         var tenantConfiguration = Cache.Get(cacheKey);
-        if (tenantConfiguration == null)
+        if (tenantConfiguration?.Value == null)
         {
             AsyncHelper.RunSync(async () => await TenantAppService.FindTenantByIdAsync(id));
             tenantConfiguration = Cache.Get(cacheKey);

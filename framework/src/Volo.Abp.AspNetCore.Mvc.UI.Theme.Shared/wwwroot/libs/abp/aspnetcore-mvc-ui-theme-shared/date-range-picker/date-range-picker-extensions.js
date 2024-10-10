@@ -163,10 +163,10 @@
         }
     }
 
-    function convertToMoment(value, options, dateFormat) {
+    function convertToMoment(value, options, dateFormat, isUtc) {
         if(!value) {
             // invalid date
-            return moment('');
+            return moment.invalid();
         }
 
         options = options || {};
@@ -174,32 +174,22 @@
 
         if (typeof value === 'string') {
             for(var format of formats) {
-                var date = moment(value, format);
+                var date = isUtc ? moment.utc(value, format) : moment(value, format);
                 if(date.isValid()) {
-                    return maybeUtc(date, options);
+                    return date;
                 }
             }
         }
 
         if (value.isAbpDate) {
-            return maybeUtc(value._moment.clone(), options);
+            return value._moment.clone();
         }
 
         if(value.isLuxonDateTime) {
-            return maybeUtc(moment(value.toISO()), options);
+            return isUtc ? moment.utc(value.toISO()) : moment(value.toISO());
         }
 
-        return maybeUtc(moment(value), options);
-    }
-
-    function maybeUtc(date, options) {
-        if (options.isUtc) {
-            date = date.utc();
-        }else{
-            date = date.local();
-        }
-
-        return date;
+        return isUtc ? moment.utc(value) : moment(value);
     }
 
     function getTodayButton(options, $dateRangePicker) {
@@ -215,7 +205,7 @@
                 var today = moment();
                 $dateRangePicker.setStartDate(today);
                 $dateRangePicker.setEndDate(today);
-                
+
                 if(options.singleDatePicker && options.autoApply){
                     $dateRangePicker.clickApply();
                 }else{
@@ -314,6 +304,9 @@
 
     function setOptions(options, $datePickerElement, singleDatePicker) {
         options.singleDatePicker = singleDatePicker;
+
+        var $modal = $datePickerElement.closest('.modal.fade');
+
         var defaultOptions = {
             showDropdowns: true,
             opens: "center",
@@ -330,7 +323,8 @@
                 clearLabel: abp.localization.localize('Clear', 'AbpUi'),
                 applyLabel: abp.localization.localize('Apply', 'AbpUi'),
             },
-            singleOpenAndClearButton: true
+            singleOpenAndClearButton: true,
+            parentEl: $modal.length > 0 ? $modal : 'body'
         };
         var locale = defaultOptions.locale;
         $.extend(options, defaultOptions);
@@ -374,6 +368,14 @@
                 }
                 options.ranges[key] = [AbpDate(start, options), AbpDate(end, options)];
             });
+        }
+
+        if (options.maxDate){
+            options.maxDate = convertToMoment(options.maxDate, options);
+        }
+
+        if (options.minDate){
+            options.minDate = convertToMoment(options.minDate, options);
         }
 
         if (typeof options.template !== 'string' && !(options.template instanceof $))
@@ -430,6 +432,11 @@
     function formatHiddenDate(date, options) {
         date = convertToMoment(date, options, options.inputDateFormat);
         if (date.isValid()) {
+            if (options.isUtc) {
+                date = date.utc();
+            }else{
+                date = date.local();
+            }
             if (options.isIso) {
                 return date.toISOString();
             }
@@ -439,15 +446,24 @@
         return '';
     }
 
+    function createInitialAbpDate(date, options) {
+        date = convertToMoment(date, options, undefined, options.isUtc);
+        if (options.isUtc) {
+            date = date.local();
+        }
+
+        return AbpDate(date, options);
+    }
+
     abp.dom.initializers.initializeDateRangePickers = function ($rootElement) {
         $rootElement
             .findWithSelf('abp-date-picker,abp-date-range-picker')
             .each(function () {
                 var $this = $(this);
                 var $input = $this.find('.input-group input[type="text"]')
-                var $startDateInput = $this.find('input[data-start-date]');
-                var $endDateInput = $this.find('input[data-end-date]');
-                var $dateInput = $this.find('input[data-date]');
+                var $startDateInput = $this.find('input[type="hidden"][data-start-date]');
+                var $endDateInput = $this.find('input[type="hidden"][data-end-date]');
+                var $dateInput = $this.find('input[type="hidden"][data-date]');
                 if ($input.data('daterangepicker')) {
                     return;
                 }
@@ -463,10 +479,11 @@
 
                 var singleOpenAndClearButton = options.singleOpenAndClearButton && $clearButton.length > 0 && $openButton.length > 0;
 
-                var startDate = AbpDate(options.startDate || options.date || (options.autoUpdateInput ? new Date() : undefined), options);
+                var startDate = createInitialAbpDate(options.startDate || options.date || (options.autoUpdateInput ? new Date() : undefined), options);
+
                 var oldStartDate = AbpDate(undefined, options);
 
-                var endDate = AbpDate(options.endDate || undefined, options);
+                var endDate = createInitialAbpDate(options.endDate || (options.autoUpdateInput ? new Date() : undefined), options);
                 var oldEndDate = AbpDate(undefined, options);
 
                 options.startDate = convertToMoment(startDate, options);
@@ -540,6 +557,10 @@
                             triggerDateChange($input, startDate, isDateRangePickerTrigger);
                         }
                     }
+
+                    if(isTrigger || isInputTrigger || isDateRangePickerTrigger){
+                        triggerValidation();
+                    }
                 }
 
                 function setDataDates(date, $selfInput, prefix){
@@ -547,6 +568,25 @@
                     $selfInput.data('date', date);
                     $this.data(prefix + 'date', date);
                     $input.data(prefix + 'date', date);
+                }
+
+                function triggerValidation() {
+                    checkValidity($startDateInput);
+                    checkValidity($endDateInput);
+                    checkValidity($dateInput);
+                    checkValidity($input);
+                }
+
+                function checkValidity($selfInput) {
+                    if (!$selfInput) {
+                        return;
+                    }
+
+                    if($selfInput.closest('form').length === 0) {
+                        return;
+                    }
+
+                    $selfInput.valid();
                 }
 
                 function triggerDateChange($selfInput, value, isDateRangePickerTrigger) {
@@ -573,13 +613,13 @@
                 });
 
                 $input.on('show.daterangepicker', function (ev, picker) {
-                    const today = moment();
+                    const today = moment().startOf('day');
                     if(isEmptyDate(startDate, options)){
                         picker.setStartDate(today);
                     }else{
                         picker.setStartDate(convertToMoment(startDate, options, options.inputDateFormat));
                     }
-                    
+
                     if(singleDatePicker){
                         picker.setEndDate(picker.startDate);
                     }else if(isEmptyDate(endDate, options)){
@@ -657,12 +697,12 @@
                     changeDate(isTrigger, isInputTrigger, isDateRangePickerTrigger);
                 }
 
-                const setStartDateByMomentDate = (momentDate) => {
+                function setStartDateByMomentDate (momentDate) {
                     oldStartDate = startDate;
                     startDate = AbpDate(momentDate, options);
                 }
 
-                const setEndDateByMomentEndDate = (momentDate) => {
+                function setEndDateByMomentEndDate(momentDate){
                     if(singleDatePicker){
                         return;
                     }
@@ -704,6 +744,10 @@
                 inputChangeHandler(false, false, false);
             });
     }
+
+    abp.dom.onNodeAdded(function (args) {
+        abp.dom.initializers.initializeDateRangePickers(args.$el);
+    });
 
     $(function () {
         abp.dom.initializers.initializeDateRangePickers($('body'));

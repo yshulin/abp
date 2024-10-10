@@ -1,5 +1,4 @@
 import { Type } from '@angular/core';
-import { O } from 'ts-toolbelt';
 import {
   Action,
   ActionContributorCallback,
@@ -8,6 +7,8 @@ import {
   Actions,
   ActionsFactory,
 } from './actions';
+import { FormPropTooltip } from './form-props';
+import { FilteredWithOptions, PartialWithOptions } from '../utils/model.utils';
 
 export class EntityActionList<R = any> extends ActionList<R, EntityAction<R>> {}
 
@@ -24,6 +25,8 @@ export class EntityAction<R = any> extends Action<R> {
   readonly icon: string;
   readonly btnClass?: string;
   readonly btnStyle?: string;
+  readonly showOnlyIcon?: boolean;
+  readonly tooltip?: FormPropTooltip;
 
   constructor(options: EntityActionOptions<R>) {
     super(options.permission || '', options.visible, options.action);
@@ -31,6 +34,8 @@ export class EntityAction<R = any> extends Action<R> {
     this.icon = options.icon || '';
     this.btnClass = options.btnClass || 'btn btn-primary text-center';
     this.btnStyle = options.btnStyle;
+    this.showOnlyIcon = options.showOnlyIcon || false;
+    this.tooltip = options.tooltip;
   }
 
   static create<R = any>(options: EntityActionOptions<R>) {
@@ -42,10 +47,9 @@ export class EntityAction<R = any> extends Action<R> {
   }
 }
 
-export type EntityActionOptions<R = any> = O.Optional<
-  O.Writable<EntityAction<R>>,
-  'permission' | 'visible' | 'icon'
->;
+type OptionalKeys = 'permission' | 'visible' | 'icon';
+export type EntityActionOptions<R = any> = PartialWithOptions<EntityAction<R>, OptionalKeys> &
+  FilteredWithOptions<EntityAction<R>, OptionalKeys>;
 
 export type EntityActionDefaults<R = any> = Record<string, EntityAction<R>[]>;
 export type EntityActionContributorCallback<R = any> = ActionContributorCallback<

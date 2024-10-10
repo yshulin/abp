@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Volo.Abp.DependencyInjection;
+using Volo.Abp.Http;
 using Volo.Abp.MultiTenancy;
 
 namespace Volo.Abp.UI.Navigation.Urls;
@@ -15,7 +16,6 @@ public class AppUrlProvider : IAppUrlProvider, ITransientDependency
 {
     protected AppUrlOptions Options { get; }
     protected IMultiTenantUrlProvider MultiTenantUrlProvider { get; }
-
     public ILogger<AppUrlProvider> Logger { get; set; }
 
     public AppUrlProvider(
@@ -37,9 +37,15 @@ public class AppUrlProvider : IAppUrlProvider, ITransientDependency
         );
     }
 
-    public bool IsRedirectAllowedUrl(string url)
+    public virtual async Task<bool> IsRedirectAllowedUrlAsync(string url)
     {
-        var allow = Options.RedirectAllowedUrls.Any(x => url.StartsWith(x, StringComparison.CurrentCultureIgnoreCase));
+        var redirectAllowedUrls = new List<string>();
+        foreach (var redirectAllowedUrl in Options.RedirectAllowedUrls)
+        {
+            redirectAllowedUrls.Add((await NormalizeUrlAsync(redirectAllowedUrl))!);
+        }
+        var allow = redirectAllowedUrls.Any(x => url.StartsWith(x, StringComparison.CurrentCultureIgnoreCase) ||
+                                                 UrlHelpers.IsSubdomainOf(url, x));
         if (!allow)
         {
             Logger.LogError($"Invalid RedirectUrl: {url}, Use {nameof(AppUrlProvider)} to configure it!");

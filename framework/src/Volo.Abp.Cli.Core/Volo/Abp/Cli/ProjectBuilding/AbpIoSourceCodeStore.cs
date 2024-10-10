@@ -65,7 +65,8 @@ public class AbpIoSourceCodeStore : ISourceCodeStore, ITransientDependency
         string version = null,
         string templateSource = null,
         bool includePreReleases = false,
-        bool skipCache = false)
+        bool skipCache = false,
+        bool trustUserVersion = false)
     {
         DirectoryHelper.CreateIfNotExists(CliPaths.TemplateCache);
         var userSpecifiedVersion = version != null;
@@ -92,68 +93,72 @@ public class AbpIoSourceCodeStore : ISourceCodeStore, ITransientDependency
             version = latestVersion;
         }
 
-        var currentCliVersion = await CliVersionService.GetCurrentCliVersionAsync();
-        var templateVersion = SemanticVersion.Parse(version);
+        if (type == SourceCodeTypes.Template)
+        {
+            var currentCliVersion = await CliVersionService.GetCurrentCliVersionAsync();
+            var templateVersion = SemanticVersion.Parse(version);
 
-        var outputWarning = false;
-        if (currentCliVersion.Major != templateVersion.Major || currentCliVersion.Minor != templateVersion.Minor)
-        {
-            // major and minor version are different
-            outputWarning = true;
-        }
-        else if (currentCliVersion.Major == templateVersion.Major &&
-                 currentCliVersion.Minor == templateVersion.Minor &&
-                 currentCliVersion.Patch < templateVersion.Patch)
-        {
-            // major and minor version are same but patch version is lower
-            outputWarning = true;
-        }
-        else if(currentCliVersion.Major == templateVersion.Major &&
-                currentCliVersion.Minor == templateVersion.Minor &&
-                currentCliVersion.Patch == templateVersion.Patch &&
-                currentCliVersion.IsPrerelease && templateVersion.IsPrerelease)
-        {
-            // major and minor and patch version are same but prerelease version may be lower
-            var cliRcVersion = currentCliVersion.ReleaseLabels.LastOrDefault();
-            var templateRcVersion = templateVersion.ReleaseLabels.LastOrDefault();
-            if (cliRcVersion != null && templateRcVersion != null)
+            var outputWarning = false;
+            if (!trustUserVersion)
             {
-                if (int.TryParse(cliRcVersion, out var cliRcVersionNumber) && int.TryParse(templateRcVersion, out var templateRcVersionNumber))
+                if (currentCliVersion.Major != templateVersion.Major || currentCliVersion.Minor != templateVersion.Minor)
                 {
-                    if (cliRcVersionNumber < templateRcVersionNumber)
+                    // major and minor version are different
+                    outputWarning = true;
+                }
+                else if (currentCliVersion.Major == templateVersion.Major &&
+                         currentCliVersion.Minor == templateVersion.Minor &&
+                         currentCliVersion.Patch < templateVersion.Patch)
+                {
+                    // major and minor version are same but patch version is lower
+                    outputWarning = true;
+                }
+                else if(currentCliVersion.Major == templateVersion.Major &&
+                        currentCliVersion.Minor == templateVersion.Minor &&
+                        currentCliVersion.Patch == templateVersion.Patch &&
+                        currentCliVersion.IsPrerelease && templateVersion.IsPrerelease)
+                {
+                    // major and minor and patch version are same but prerelease version may be lower
+                    var cliRcVersion = currentCliVersion.ReleaseLabels.LastOrDefault();
+                    var templateRcVersion = templateVersion.ReleaseLabels.LastOrDefault();
+                    if (cliRcVersion != null && templateRcVersion != null)
                     {
-                        outputWarning = true;
+                        if (int.TryParse(cliRcVersion, out var cliRcVersionNumber) && int.TryParse(templateRcVersion, out var templateRcVersionNumber))
+                        {
+                            if (cliRcVersionNumber < templateRcVersionNumber)
+                            {
+                                outputWarning = true;
+                            }
+                        }
                     }
+                }
+            }
+
+            if (outputWarning)
+            {
+                Logger.LogWarning(userSpecifiedVersion
+                    ? $"The specified template version ({templateVersion}) is different than the CLI version ({currentCliVersion}). This may cause compatibility issues."
+                    : $"The latest template version ({templateVersion}) is different than the CLI version ({currentCliVersion}). This may cause compatibility issues.");
+                Logger.LogWarning("Please upgrade/downgrade the CLI version to the template version.");
+                Logger.LogWarning($"> dotnet tool uninstall -g volo.abp.cli");
+                Logger.LogWarning(!templateVersion.IsPrerelease
+                    ? $"> dotnet tool install -g volo.abp.cli --version \"{templateVersion.Major}.{templateVersion.Minor}.*\""
+                    : $"> dotnet tool install -g volo.abp.cli --version {templateVersion}");
+
+                if (userSpecifiedVersion)
+                {
+                    Logger.LogWarning($"We have changed the template version as the cli version.");
+                    Logger.LogWarning($"New version: {version}");
                 }
             }
         }
 
-        if (outputWarning)
-        {
-            version = currentCliVersion.ToString();
-            Logger.LogWarning(userSpecifiedVersion
-                ? $"The specified template version ({templateVersion}) is different than the CLI version ({currentCliVersion}). This may cause compatibility issues."
-                : $"The latest template version ({templateVersion}) is different than the CLI version ({currentCliVersion}). This may cause compatibility issues.");
-            Logger.LogWarning("Please upgrade/downgrade the CLI version to the template version.");
-            Logger.LogWarning($"> dotnet tool uninstall -g volo.abp.cli");
-            Logger.LogWarning(!templateVersion.IsPrerelease
-                ? $"> dotnet tool install -g volo.abp.cli --version \"{templateVersion.Major}.{templateVersion.Minor}.*\""
-                : $"> dotnet tool install -g volo.abp.cli --version {templateVersion}");
-
-            if (!userSpecifiedVersion)
-            {
-                version = currentCliVersion.ToString();
-                Logger.LogWarning($"We have changed the template version as the cli version.");
-                Logger.LogWarning($"New version: {version}");
-            }
-        }
-
-        if (!await IsVersionExists(name, version))
+        if (!trustUserVersion && !await IsVersionExists(name, version))
         {
             throw new Exception("There is no version found with given version: " + version);
         }
 
-        var nugetVersion = (await GetTemplateNugetVersionAsync(name, type, version)) ?? version;
+        var nugetVersion = await GetTemplateNugetVersionAsync(name, type, version) ?? version;
 
         if (!string.IsNullOrWhiteSpace(templateSource) && !IsNetworkSource(templateSource))
         {
@@ -165,7 +170,7 @@ public class AbpIoSourceCodeStore : ISourceCodeStore, ITransientDependency
         var localCacheFile = Path.Combine(CliPaths.TemplateCache, name.Replace("/", ".") + "-" + version + ".zip");
 
 #if DEBUG
-        if (File.Exists(localCacheFile))
+        if (File.Exists(localCacheFile) && templateSource.IsNullOrWhiteSpace())
         {
             return new TemplateFile(File.ReadAllBytes(localCacheFile), version, latestVersion, nugetVersion);
         }
@@ -175,6 +180,16 @@ public class AbpIoSourceCodeStore : ISourceCodeStore, ITransientDependency
         {
             Logger.LogInformation("Using cached " + type + ": " + name + ", version: " + version);
             return new TemplateFile(File.ReadAllBytes(localCacheFile), version, latestVersion, nugetVersion);
+        }
+
+        if (!skipCache && !templateSource.IsNullOrWhiteSpace() && type == SourceCodeTypes.Template)
+        {
+            var templateFilePath = templateSource.EndsWith(".zip")
+                ? templateSource
+                : Path.Combine(templateSource, name.Replace("/", ".").EnsureEndsWith('-') + version + ".zip");
+            
+            Logger.LogInformation("Using cached template: " + name + ", version: " + version + " from template source: " + templateFilePath);            
+            return new TemplateFile(File.ReadAllBytes(templateFilePath), version, latestVersion, nugetVersion);
         }
 
         Logger.LogInformation("Downloading " + type + ": " + name + ", version: " + version);

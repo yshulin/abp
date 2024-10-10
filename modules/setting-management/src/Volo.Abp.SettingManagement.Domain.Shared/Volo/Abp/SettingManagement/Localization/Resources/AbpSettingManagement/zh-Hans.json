@@ -2,7 +2,7 @@
   "culture": "zh-Hans",
   "texts": {
     "Settings": "设置",
-    "SuccessfullySaved": "保存成功",
+    "SavedSuccessfully": "保存成功",
     "Permission:SettingManagement": "设置管理",
     "Permission:Emailing": "邮件",
     "Permission:EmailingTest": "邮件测试",
@@ -15,6 +15,7 @@
     "TestEmailSubject": "测试邮件 {0}",
     "TestEmailBody": "测试邮件内容",
     "SuccessfullySent": "发送成功",
+    "MailSendingFailed": "邮件发送失败，请检查您的电子邮件配置并重试。",
     "Send": "发送",
     "Menu:Emailing": "邮件",
     "Menu:TimeZone": "时区",

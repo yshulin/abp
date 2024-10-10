@@ -2,7 +2,7 @@
   "culture": "ru",
   "texts": {
     "Settings": "Настройки",
-    "SuccessfullySaved": "Успешно сохранено",
+    "SavedSuccessfully": "Успешно сохранено",
     "Permission:SettingManagement": "Управление настройками",
     "Permission:Emailing": "Отправка по электронной почте",
     "Permission:EmailingTest": "Тестовая рассылка по электронной почте",
@@ -15,6 +15,7 @@
     "TestEmailSubject": "Тестовое письмо {0}",
     "TestEmailBody": "Проверьте текст сообщения электронной почты здесь",
     "SuccessfullySent": "Успешно отправлено",
+    "MailSendingFailed": "Не удалось отправить письмо. Пожалуйста, проверьте настройки электронной почты и повторите попытку.",
     "Send": "Отправлять",
     "Menu:Emailing": "Отправка по электронной почте",
     "Menu:TimeZone": "Часовой пояс",

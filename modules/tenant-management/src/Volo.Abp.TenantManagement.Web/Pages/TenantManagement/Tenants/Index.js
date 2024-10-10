@@ -38,6 +38,7 @@
                             _featuresModal.open({
                                 providerName: 'T',
                                 providerKey: data.record.id,
+                                providerKeyDisplayName: data.record.name,
                             });
                         },
                     },
@@ -57,7 +58,7 @@
                                 .delete(data.record.id)
                                 .then(function () {
                                     _dataTable.ajax.reloadEx();
-                                    abp.notify.success(l('SuccessfullyDeleted'));
+                                    abp.notify.success(l('DeletedSuccessfully'));
                                 });
                         },
                     }

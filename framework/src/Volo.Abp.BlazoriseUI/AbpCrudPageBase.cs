@@ -177,7 +177,7 @@ public abstract class AbpCrudPageBase<
     [Inject] protected TAppService AppService { get; set; } = default!;
     [Inject] protected IStringLocalizer<AbpUiResource> UiLocalizer { get; set; } = default!;
     [Inject] public IAbpEnumLocalizer AbpEnumLocalizer { get; set; } = default!;
-
+    [Inject]protected ExtensionPropertyPolicyChecker ExtensionPropertyPolicyChecker { get; set; } = default!;
     protected virtual int PageSize { get; } = LimitedResultRequestDto.DefaultMaxResultCount;
 
     protected int CurrentPage = 1;
@@ -306,10 +306,12 @@ public abstract class AbpCrudPageBase<
 
     protected virtual async Task SearchEntitiesAsync()
     {
+        var currentPage = CurrentPage;
         CurrentPage = 1;
-
-        await GetEntitiesAsync();
-
+        if (currentPage == 1)
+        {
+            await GetEntitiesAsync();
+        }
         await InvokeAsync(StateHasChanged);
     }
 
@@ -317,6 +319,7 @@ public abstract class AbpCrudPageBase<
     {
         CurrentSorting = e.Columns
             .Where(c => c.SortDirection != SortDirection.Default)
+            .OrderBy(c => c.SortIndex)
             .Select(c => c.SortField + (c.SortDirection == SortDirection.Descending ? " DESC" : ""))
             .JoinAsString(",");
         CurrentPage = e.Page;
@@ -478,6 +481,12 @@ public abstract class AbpCrudPageBase<
         await GetEntitiesAsync();
 
         await InvokeAsync(CreateModal!.Hide);
+        await Notify.Success(GetCreateMessage());
+    }
+
+    protected virtual string GetCreateMessage()
+    {
+        return UiLocalizer["CreatedSuccessfully"];
     }
 
     protected virtual async Task UpdateEntityAsync()
@@ -516,6 +525,12 @@ public abstract class AbpCrudPageBase<
         await GetEntitiesAsync();
 
         await InvokeAsync(EditModal!.Hide);
+        await Notify.Success(GetUpdateMessage());
+    }
+
+    protected virtual string GetUpdateMessage()
+    {
+        return UiLocalizer["SavedSuccessfully"];
     }
 
     protected virtual async Task DeleteEntityAsync(TListViewModel entity)
@@ -542,7 +557,12 @@ public abstract class AbpCrudPageBase<
     {
         await GetEntitiesAsync();
         await InvokeAsync(StateHasChanged);
-        await Notify.Success(L["SuccessfullyDeleted"]);
+        await Notify.Success(GetDeleteMessage());
+    }
+
+    protected virtual string GetDeleteMessage()
+    {
+        return UiLocalizer["DeletedSuccessfully"];
     }
 
     protected virtual string GetDeleteConfirmationMessage(TListViewModel entity)
@@ -596,12 +616,12 @@ public abstract class AbpCrudPageBase<
 
         await SetEntityActionsAsync();
     }
-    
+
     protected virtual ValueTask SetEntityActionsAsync()
     {
         return ValueTask.CompletedTask;
     }
-    
+
     private async ValueTask TrySetTableColumnsAsync()
     {
         if (IsDisposed)
@@ -614,7 +634,7 @@ public abstract class AbpCrudPageBase<
 
     protected virtual ValueTask SetTableColumnsAsync()
     {
-        
+
         return ValueTask.CompletedTask;
     }
 
@@ -623,23 +643,29 @@ public abstract class AbpCrudPageBase<
         return ValueTask.CompletedTask;
     }
 
-    protected virtual IEnumerable<TableColumn> GetExtensionTableColumns(string moduleName, string entityType)
+    protected virtual async Task<List<TableColumn>> GetExtensionTableColumnsAsync(string moduleName, string entityType)
     {
-        var properties = ModuleExtensionConfigurationHelper.GetPropertyConfigurations(moduleName, entityType);
+        var tableColumns = new List<TableColumn>();
+        var properties = ModuleExtensionConfigurationHelper.GetPropertyConfigurations(moduleName, entityType).ToList();
         foreach (var propertyInfo in properties)
         {
+            if (!await ExtensionPropertyPolicyChecker.CheckPolicyAsync(propertyInfo.Policy))
+            {
+                continue;
+            }
+
             if (propertyInfo.IsAvailableToClients && propertyInfo.UI.OnTable.IsVisible)
             {
                 if (propertyInfo.Name.EndsWith("_Text"))
                 {
                     var lookupPropertyName = propertyInfo.Name.RemovePostFix("_Text");
                     var lookupPropertyDefinition = properties.SingleOrDefault(t => t.Name == lookupPropertyName)!;
-                    yield return new TableColumn
+                    tableColumns.Add(new TableColumn
                     {
                         Title = lookupPropertyDefinition.GetLocalizedDisplayName(StringLocalizerFactory),
                         Data = $"ExtraProperties[{propertyInfo.Name}]",
                         PropertyName = propertyInfo.Name
-                    };
+                    });
                 }
                 else
                 {
@@ -661,9 +687,11 @@ public abstract class AbpCrudPageBase<
                             AbpEnumLocalizer.GetString(propertyInfo.Type, val.As<ExtensibleObject>().ExtraProperties[propertyInfo.Name]!, new IStringLocalizer?[]{ StringLocalizerFactory.CreateDefaultOrNull() });
                     }
 
-                    yield return column;
+                    tableColumns.Add(column);
                 }
             }
         }
+
+        return tableColumns;
     }
 }

@@ -42,6 +42,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Volo.Abp.DependencyInjection;
 using Volo.CmsKit.Public.Pages;
+using Volo.CmsKit.MarkedItems;
 
 
 #if EntityFrameworkCore
@@ -167,9 +168,9 @@ public class CmsKitWebUnifiedModule : AbpModule
             options.Languages.Add(new LanguageInfo("hu", "hu", "Magyar"));
             options.Languages.Add(new LanguageInfo("fi", "fi", "Finnish"));
             options.Languages.Add(new LanguageInfo("fr", "fr", "Français"));
-            options.Languages.Add(new LanguageInfo("hi", "hi", "Hindi", "in"));
-            options.Languages.Add(new LanguageInfo("is", "is", "Icelandic", "is"));
-            options.Languages.Add(new LanguageInfo("it", "it", "Italiano", "it"));
+            options.Languages.Add(new LanguageInfo("hi", "hi", "Hindi"));
+            options.Languages.Add(new LanguageInfo("is", "is", "Icelandic"));
+            options.Languages.Add(new LanguageInfo("it", "it", "Italiano"));
             options.Languages.Add(new LanguageInfo("pt-BR", "pt-BR", "Português (Brasil)"));
             options.Languages.Add(new LanguageInfo("ro-RO", "ro-RO", "Română"));
             options.Languages.Add(new LanguageInfo("ru", "ru", "Русский"));
@@ -234,6 +235,16 @@ public class CmsKitWebUnifiedModule : AbpModule
         {
             options.EntityTypes.Add(new RatingEntityTypeDefinition("quote"));
         });
+
+        Configure<CmsKitMarkedItemOptions>(options =>
+        {
+            options.EntityTypes.Add(
+                new MarkedItemEntityTypeDefinition(
+                    "product",
+                    StandardMarkedItems.Favorite
+                    )
+                );
+        });
     }
 
     public override void OnApplicationInitialization(ApplicationInitializationContext context)
@@ -252,7 +263,7 @@ public class CmsKitWebUnifiedModule : AbpModule
         }
 
         app.UseHttpsRedirection();
-        app.UseStaticFiles();
+        app.MapAbpStaticAssets();
         app.UseRouting();
         app.UseAuthentication();
 

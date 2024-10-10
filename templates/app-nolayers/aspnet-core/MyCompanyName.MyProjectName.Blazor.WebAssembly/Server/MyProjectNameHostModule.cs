@@ -6,11 +6,13 @@ using Microsoft.OpenApi.Models;
 using MyCompanyName.MyProjectName.Data;
 using MyCompanyName.MyProjectName.Localization;
 using MyCompanyName.MyProjectName;
+using MyCompanyName.MyProjectName.Components;
 using MyCompanyName.MyProjectName.MultiTenancy;
 using OpenIddict.Validation.AspNetCore;
 using Volo.Abp;
 using Volo.Abp.Account;
 using Volo.Abp.Account.Web;
+using Volo.Abp.AspNetCore.Components.WebAssembly.WebApp;
 using Volo.Abp.AspNetCore.MultiTenancy;
 using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.AspNetCore.Mvc.Localization;
@@ -136,6 +138,8 @@ public class MyProjectNameHostModule : AbpModule
                     serverBuilder.AddProductionEncryptionAndSigningCertificate("openiddict.pfx", "00000000-0000-0000-0000-000000000000");
                 });
             }
+            
+            MyProjectNameEfCoreEntityExtensionMappings.Configure();
         }
 
         public override void ConfigureServices(ServiceConfigurationContext context)
@@ -147,6 +151,10 @@ public class MyProjectNameHostModule : AbpModule
             {
                 context.Services.Replace(ServiceDescriptor.Singleton<IEmailSender, NullEmailSender>());
             }
+
+            // Add services to the container.
+            context.Services.AddRazorComponents()
+                .AddInteractiveWebAssemblyComponents();
 
             ConfigureAuthentication(context);
             ConfigureBundles();
@@ -322,7 +330,7 @@ public class MyProjectNameHostModule : AbpModule
 
             app.UseCorrelationId();
             app.UseBlazorFrameworkFiles();
-            app.UseStaticFiles();
+            app.MapAbpStaticAssets();
             app.UseRouting();
             app.UseCors();
             app.UseAuthentication();
@@ -335,6 +343,7 @@ public class MyProjectNameHostModule : AbpModule
 
             app.UseUnitOfWork();
             app.UseDynamicClaims();
+            app.UseAntiforgery();
             app.UseAuthorization();
 
             app.UseSwagger();
@@ -349,11 +358,11 @@ public class MyProjectNameHostModule : AbpModule
 
             app.UseAuditing();
             app.UseAbpSerilogEnrichers();
-            app.UseConfiguredEndpoints();
-
-            if (app is WebApplication webApp)
+            app.UseConfiguredEndpoints(builder =>
             {
-                webApp.MapFallbackToFile("index.html");
-            }
+                builder.MapRazorComponents<App>()
+                    .AddInteractiveWebAssemblyRenderMode()
+                    .AddAdditionalAssemblies(WebAppAdditionalAssembliesHelper.GetAssemblies<MyProjectNameBlazorModule>());
+            });
         }
 }

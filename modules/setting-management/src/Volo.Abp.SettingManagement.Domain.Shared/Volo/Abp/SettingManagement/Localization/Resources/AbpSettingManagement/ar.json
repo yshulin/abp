@@ -2,7 +2,7 @@
   "culture": "ar",
   "texts": {
     "Settings": "الإعدادات",
-    "SuccessfullySaved": "تم الحفظ بنجاح",
+    "SavedSuccessfully": "تم الحفظ بنجاح",
     "Permission:SettingManagement": "إدارة الإعداد",
     "Permission:Emailing": "إرسال بالبريد الإلكتروني",
     "Permission:EmailingTest": "اختبار البريد الإلكتروني",
@@ -15,6 +15,7 @@
     "TestEmailSubject": "اختبار البريد الإلكتروني {0}",
     "TestEmailBody": "اختبار نص رسالة البريد الإلكتروني هنا",
     "SuccessfullySent": "أرسلت بنجاح",
+    "MailSendingFailed": "فشل إرسال البريد ، يرجى التحقق من تكوين البريد الإلكتروني الخاص بك والمحاولة مرة أخرى.",
     "Send": "يرسل",
     "Menu:Emailing": "إرسال بالبريد الإلكتروني",
     "Menu:TimeZone": "وحدة زمنية",
